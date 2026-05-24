@@ -43,6 +43,19 @@ router.get('/history', verifyToken, async (req, res) => {
 
 // ================= PROFILE =================
 
+router.get('/profile/stats', verifyToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    res.json({
+      storiesRead: user.readingHistory.length,
+      following: user.library.length,
+      points: '15k'
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 router.put('/profile', verifyToken, async (req, res) => {
   try {
     const { username, avatar } = req.body;
