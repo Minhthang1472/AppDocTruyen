@@ -15,9 +15,40 @@ export default function SignupScreen({ navigation }) {
   const [agree, setAgree] = useState(false);
   const [error, setError] = useState('');
 
+  const handleEmailChange = (text) => {
+    setEmail(text);
+    if (text.length > 0) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(text)) {
+        setError('Không nhận diện được email');
+      } else {
+        if (error === 'Không nhận diện được email' || error === 'Yêu cầu nhập email') {
+          setError('');
+        }
+      }
+    } else {
+      if (error === 'Không nhận diện được email') {
+        setError('');
+      }
+    }
+  };
+
   const handleSignup = async () => {
+    if (!name || !email || !password || !confirmPassword) {
+      return setError('Yêu cầu nhập đầy đủ thông tin');
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return setError('Không nhận diện được email');
+    }
+
+    if (password.length < 8) {
+      return setError('Mật khẩu phải có ít nhất 8 ký tự');
+    }
+
     if (password !== confirmPassword) {
-       return setError('Mật khẩu không khớp');
+       return setError('Mật khẩu xác nhận không khớp');
     }
     if (!agree) return setError('Bạn cần đồng ý điều khoản');
 
@@ -66,7 +97,7 @@ export default function SignupScreen({ navigation }) {
                 placeholder="name@example.com"
                 placeholderTextColor={colors.textSecondary}
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={handleEmailChange}
                 keyboardType="email-address"
                 autoCapitalize="none"
               />

@@ -24,6 +24,7 @@ export default function DiscoveryScreen({ navigation, route }) {
   const [category, setCategory] = useState(initialCategory);
   const [status, setStatus] = useState('All');
   const [sort, setSort] = useState('views');
+  const [viewMode, setViewMode] = useState('grid');
 
   useEffect(() => {
      if (route?.params?.category) setCategory(route.params.category);
@@ -155,6 +156,20 @@ export default function DiscoveryScreen({ navigation, route }) {
     </TouchableOpacity>
   );
 
+  const renderListItem = ({ item }) => (
+    <TouchableOpacity style={styles.listCard} onPress={() => navigation.navigate('NovelDetail', { novelId: item._id, novelTitle: item.title })}>
+      <Image source={{ uri: item.coverImage || 'https://via.placeholder.com/150' }} style={styles.listImage} />
+      <View style={styles.listInfo}>
+        <Text style={styles.popularTitle} numberOfLines={2}>{item.title}</Text>
+        <Text style={styles.popularSub}>{item.genres?.[0] || 'Novel'} • {item.chaptersCount} Ch.</Text>
+        <View style={styles.listRatingBadge}>
+          <Ionicons name="star" size={12} color={colors.primary} />
+          <Text style={styles.listRatingText}>{item.rating}</Text>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+
   return (
     <SafeAreaView style={styles.container}>
       {renderHeader()}
@@ -171,8 +186,12 @@ export default function DiscoveryScreen({ navigation, route }) {
                 : 'Popular Now'}
           </Text>
           <View style={{ flexDirection: 'row' }}>
-             <Feather name="grid" size={20} color={colors.primary} style={{ marginRight: 15 }} />
-             <Feather name="list" size={20} color={colors.textSecondary} />
+             <TouchableOpacity onPress={() => setViewMode('grid')} style={{ padding: 5 }}>
+               <Feather name="grid" size={20} color={viewMode === 'grid' ? colors.primary : colors.textSecondary} style={{ marginRight: 10 }} />
+             </TouchableOpacity>
+             <TouchableOpacity onPress={() => setViewMode('list')} style={{ padding: 5 }}>
+               <Feather name="list" size={20} color={viewMode === 'list' ? colors.primary : colors.textSecondary} />
+             </TouchableOpacity>
           </View>
         </View>
 
@@ -180,12 +199,13 @@ export default function DiscoveryScreen({ navigation, route }) {
           <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 20 }} />
         ) : (
           <FlatList
+            key={viewMode}
             data={popular}
             keyExtractor={item => item._id}
-            numColumns={2}
-            renderItem={renderPopularItem}
+            numColumns={viewMode === 'grid' ? 2 : 1}
+            renderItem={viewMode === 'grid' ? renderPopularItem : renderListItem}
             scrollEnabled={false}
-            columnWrapperStyle={{ justifyContent: 'space-between' }}
+            columnWrapperStyle={viewMode === 'grid' ? { justifyContent: 'space-between' } : undefined}
           />
         )}
         <View style={{ height: 40 }} />
@@ -327,5 +347,32 @@ const styles = StyleSheet.create({
   popularSub: {
     color: colors.textSecondary,
     fontSize: 12,
+  },
+  listCard: {
+    flexDirection: 'row',
+    marginBottom: 20,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  listImage: {
+    width: 100,
+    height: 140,
+  },
+  listInfo: {
+    flex: 1,
+    padding: 15,
+    justifyContent: 'center',
+  },
+  listRatingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  listRatingText: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginLeft: 5,
   }
 });

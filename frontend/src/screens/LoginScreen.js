@@ -12,7 +12,44 @@ export default function LoginScreen({ navigation }) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
 
+  const handleEmailChange = (text) => {
+    setEmail(text);
+    if (text.length > 0) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(text)) {
+        setError('Không nhận diện được email');
+      } else {
+        if (error === 'Không nhận diện được email' || error === 'Yêu cầu nhập email') {
+          setError('');
+        }
+      }
+    } else {
+      if (error === 'Không nhận diện được email') {
+        setError('');
+      }
+    }
+  };
+
   const handleLogin = async () => {
+    if (!email && !password) {
+      setError('Yêu cầu nhập đầy đủ thông tin');
+      return;
+    }
+    if (!email) {
+      setError('Yêu cầu nhập email');
+      return;
+    }
+    if (!password) {
+      setError('Yêu cầu nhập mật khẩu');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError('Không nhận diện được email');
+      return;
+    }
+
     try {
        const res = await api.post('/auth/login', { email, password });
        await AsyncStorage.setItem('userToken', res.data.token);
@@ -41,7 +78,7 @@ export default function LoginScreen({ navigation }) {
                 placeholder="Email Address"
                 placeholderTextColor={colors.textSecondary}
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={handleEmailChange}
                 keyboardType="email-address"
                 autoCapitalize="none"
               />
