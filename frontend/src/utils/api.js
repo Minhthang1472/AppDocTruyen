@@ -99,3 +99,123 @@ export const fetchChapters = async (novelId, page = 1, limit = 10) => {
         return { chapters: [], totalPages: 1, currentPage: 1 };
     }
 };
+
+// Studio & Rating APIs
+export const createNovel = async (novelData) => {
+    try {
+        const response = await api.post('/novels', novelData);
+        return response.data;
+    } catch (error) {
+        console.error('Error creating novel:', error);
+        throw error;
+    }
+};
+
+export const getMyNovels = async () => {
+    try {
+        const response = await api.get('/novels/studio/my-novels');
+        return response.data;
+    } catch (error) {
+        console.error('Error fetching my novels:', error);
+        throw error;
+    }
+};
+
+export const createChapter = async (chapterData) => {
+    try {
+        const response = await api.post('/chapters', chapterData);
+        return response.data;
+    } catch (error) {
+        console.error('Error creating chapter:', error);
+        throw error;
+    }
+};
+
+export const rateNovel = async (novelId, ratingData) => {
+    try {
+        const response = await api.post(`/novels/${novelId}/rate`, ratingData);
+        return response.data;
+    } catch (error) {
+        console.error('Error rating novel:', error);
+        throw error;
+    }
+};
+
+export const unlockChapter = async (chapterId) => {
+    try {
+        const response = await api.post(`/chapters/${chapterId}/unlock`);
+        return response.data;
+    } catch (error) {
+        console.error('Error unlocking chapter:', error);
+        throw error;
+    }
+};
+
+export const getProfile = async () => {
+    try {
+        const response = await api.get('/users/profile/me');
+        return response.data;
+    } catch (error) {
+        console.error('Error fetching profile:', error);
+        throw error;
+    }
+};
+
+export const extractChapterText = async (fileObj) => {
+    try {
+        const formData = new FormData();
+        // fileObj should be { uri, name, type }
+        formData.append('document', fileObj);
+
+        const response = await api.post('/chapters/extract-text', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
+        return response.data.text;
+    } catch (error) {
+        console.error('Error extracting text:', error);
+        throw error;
+    }
+};
+
+// --- Edit & Delete APIs ---
+export const updateNovel = async (novelId, novelData) => {
+    try {
+        const response = await api.put(`/novels/${novelId}`, novelData);
+        return response.data;
+    } catch (error) {
+        console.error('Error updating novel:', error);
+        throw error;
+    }
+};
+
+export const deleteNovel = async (novelId) => {
+    try {
+        const response = await api.delete(`/novels/${novelId}`);
+        return response.data;
+    } catch (error) {
+        console.error('Error deleting novel:', error);
+        throw error;
+    }
+};
+
+export const updateChapter = async (chapterId, chapterData) => {
+    try {
+        const response = await api.put(`/chapters/${chapterId}`, chapterData);
+        return response.data;
+    } catch (error) {
+        console.error('Error updating chapter:', error);
+        throw error;
+    }
+};
+
+export const deleteChapter = async (chapterId) => {
+    try {
+        const response = await api.delete(`/chapters/${chapterId}`);
+        return response.data;
+    } catch (error) {
+        console.error('Error deleting chapter:', error);
+        throw error;
+    }
+};

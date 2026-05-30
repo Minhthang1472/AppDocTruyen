@@ -17,16 +17,24 @@ const userSchema = new mongoose.Schema({
   },
   avatar: {
     type: String,
-    default: 'https://cdn-icons-png.flaticon.com/512/149/149071.png'
+    default: ''
   },
+  coins: {
+    type: Number,
+    default: 500
+  },
+  unlockedChapters: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Chapter'
+  }],
   role: {
     type: String,
     enum: ['user', 'admin'],
     default: 'user'
   },
-  coins: {
-    type: Number,
-    default: 0
+  bio: {
+    type: String,
+    default: 'Chưa có tiểu sử.'
   },
   isPremium: {
     type: Boolean,

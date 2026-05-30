@@ -16,15 +16,18 @@ export default function HomeScreen({ navigation }) {
   }, []);
 
   const loadData = async () => {
-    setLoading(true);
-    const [featuredData, trendingData, editorData] = await Promise.all([
+    const [featuredData, trendingData, editorData, allData] = await Promise.all([
       fetchNovels('featured'),
       fetchNovels('trending'),
-      fetchNovels('editorPick')
+      fetchNovels('editorPick'),
+      fetchNovels()
     ]);
-    setFeatured(featuredData);
-    setTrending(trendingData);
-    setEditorPicks(editorData);
+    
+    // Fallback: nếu chưa có truyện nào được set isFeatured, isTrending, thì lấy truyện chung chung
+    setFeatured(featuredData.length > 0 ? featuredData : allData.slice(0, 1));
+    setTrending(trendingData.length > 0 ? trendingData : allData);
+    setEditorPicks(editorData.length > 0 ? editorData : allData);
+    
     setLoading(false);
   };
 

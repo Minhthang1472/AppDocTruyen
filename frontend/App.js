@@ -5,6 +5,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Feather } from '@expo/vector-icons';
 import { colors } from './src/theme/colors';
 import { LanguageProvider, LanguageContext } from './src/context/LanguageContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ActivityIndicator, View } from 'react-native';
 
 // Screens
 import LoginScreen from './src/screens/LoginScreen';
@@ -25,6 +27,14 @@ import DownloadedSeriesScreen from './src/screens/DownloadedSeriesScreen';
 import ReadingHistoryScreen from './src/screens/ReadingHistoryScreen';
 import NotificationsScreen from './src/screens/NotificationsScreen';
 import SubscriptionScreen from './src/screens/SubscriptionScreen';
+import StudioScreen from './src/screens/StudioScreen';
+import CreateNovelScreen from './src/screens/CreateNovelScreen';
+import EditNovelScreen from './src/screens/EditNovelScreen';
+import CreateChapterScreen from './src/screens/CreateChapterScreen';
+import ManageChaptersScreen from './src/screens/ManageChaptersScreen';
+import EditChapterScreen from './src/screens/EditChapterScreen';
+import EditProfileScreen from './src/screens/EditProfileScreen';
+import PreferencesScreen from './src/screens/PreferencesScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -65,24 +75,58 @@ function MainTabs() {
 }
 
 export default function App() {
+  const [initialRoute, setInitialRoute] = React.useState(null);
+
+  React.useEffect(() => {
+    const checkLoginStatus = async () => {
+      try {
+        const token = await AsyncStorage.getItem('userToken');
+        if (token) {
+          setInitialRoute('MainTabs');
+        } else {
+          setInitialRoute('Login');
+        }
+      } catch (error) {
+        setInitialRoute('Login');
+      }
+    };
+    checkLoginStatus();
+  }, []);
+
+  if (!initialRoute) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#1E1E1E', justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#C5A5FF" />
+      </View>
+    );
+  }
+
   return (
     <LanguageProvider>
       <NavigationContainer>
-        <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Login">
-        <Stack.Screen name="Login" component={LoginScreen} />
-        <Stack.Screen name="Signup" component={SignupScreen} />
-        <Stack.Screen name="MainTabs" component={MainTabs} />
-        <Stack.Screen name="NovelDetail" component={NovelDetailScreen} />
-        <Stack.Screen name="Reading" component={ReadingScreen} />
-        <Stack.Screen name="HelpSupport" component={HelpSupportScreen} />
-        <Stack.Screen name="Language" component={LanguageScreen} />
-        <Stack.Screen name="Security" component={SecurityScreen} />
-        <Stack.Screen name="DownloadedSeries" component={DownloadedSeriesScreen} />
-        <Stack.Screen name="ReadingHistory" component={ReadingHistoryScreen} />
-        <Stack.Screen name="Notifications" component={NotificationsScreen} />
-        <Stack.Screen name="Subscription" component={SubscriptionScreen} />
-      </Stack.Navigator>
-    </NavigationContainer>
+        <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName={initialRoute}>
+          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="Signup" component={SignupScreen} />
+          <Stack.Screen name="MainTabs" component={MainTabs} />
+          <Stack.Screen name="NovelDetail" component={NovelDetailScreen} />
+          <Stack.Screen name="Reading" component={ReadingScreen} />
+          <Stack.Screen name="HelpSupport" component={HelpSupportScreen} />
+          <Stack.Screen name="Language" component={LanguageScreen} />
+          <Stack.Screen name="Security" component={SecurityScreen} />
+          <Stack.Screen name="DownloadedSeries" component={DownloadedSeriesScreen} />
+          <Stack.Screen name="ReadingHistory" component={ReadingHistoryScreen} />
+          <Stack.Screen name="Notifications" component={NotificationsScreen} />
+          <Stack.Screen name="Subscription" component={SubscriptionScreen} />
+          <Stack.Screen name="Studio" component={StudioScreen} />
+          <Stack.Screen name="CreateNovel" component={CreateNovelScreen} />
+          <Stack.Screen name="EditNovel" component={EditNovelScreen} />
+          <Stack.Screen name="CreateChapter" component={CreateChapterScreen} />
+          <Stack.Screen name="ManageChapters" component={ManageChaptersScreen} />
+          <Stack.Screen name="EditChapter" component={EditChapterScreen} />
+          <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+          <Stack.Screen name="Preferences" component={PreferencesScreen} />
+        </Stack.Navigator>
+      </NavigationContainer>
     </LanguageProvider>
   );
 }

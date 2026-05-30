@@ -4,14 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { fetchPopularNovels, fetchNovels } from '../utils/api';
-
-const TRENDING_SEARCHES = ['Tu Tiên', 'Hệ Thống', 'Tiên Hiệp', 'Ngôn Tình'];
-const GENRES = [
-  { id: '1', name: 'Tu Tiên', icon: 'cloud', color: '#0f766e' },
-  { id: '2', name: 'Hành Động', icon: 'crosshair', color: '#7f1d1d' },
-  { id: '3', name: 'Fantasy', icon: 'star', color: '#4c1d95' },
-  { id: '4', name: 'Romance', icon: 'heart', color: '#78350f' },
-];
+import { DISCOVERY_GENRES, TRENDING_SEARCHES } from '../utils/constants';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function DiscoveryScreen({ navigation, route }) {
   const initialCategory = route?.params?.category || null;
@@ -24,6 +18,41 @@ export default function DiscoveryScreen({ navigation, route }) {
   const [category, setCategory] = useState(initialCategory);
   const [status, setStatus] = useState('All');
   const [sort, setSort] = useState('views');
+  const [searchHistory, setSearchHistory] = useState([]);
+
+  useEffect(() => {
+    loadSearchHistory();
+  }, []);
+
+  const loadSearchHistory = async () => {
+    try {
+      const historyStr = await AsyncStorage.getItem('searchHistory');
+      if (historyStr) {
+        setSearchHistory(JSON.parse(historyStr));
+      }
+    } catch (error) {
+      console.log('Error loading search history', error);
+    }
+  };
+
+  const saveSearchHistory = async (query) => {
+    if (!query.trim()) return;
+    try {
+      let currentHistory = [...searchHistory];
+      currentHistory = currentHistory.filter(item => item !== query.trim());
+      currentHistory.unshift(query.trim());
+      if (currentHistory.length > 10) currentHistory.pop(); // Keep only last 10
+      setSearchHistory(currentHistory);
+      await AsyncStorage.setItem('searchHistory', JSON.stringify(currentHistory));
+    } catch (error) {
+      console.log('Error saving search history', error);
+    }
+  };
+
+  const clearSearchHistory = async () => {
+    setSearchHistory([]);
+    await AsyncStorage.removeItem('searchHistory');
+  };
 
   useEffect(() => {
      if (route?.params?.category) setCategory(route.params.category);
@@ -51,6 +80,7 @@ export default function DiscoveryScreen({ navigation, route }) {
 
   const handleSearchSubmit = () => {
     setSearchQuery(searchText);
+    saveSearchHistory(searchText);
   };
 
   const cycleStatus = () => {
@@ -82,7 +112,7 @@ export default function DiscoveryScreen({ navigation, route }) {
       <Feather name="search" size={20} color={colors.textSecondary} style={styles.searchIcon} />
       <TextInput
         style={styles.searchInput}
-        placeholder="Search novels..."
+        placeholder="Tìm kiếm truyện, tác giả..."
         placeholderTextColor={colors.textSecondary}
         value={searchText}
         onChangeText={setSearchText}
@@ -99,11 +129,20 @@ export default function DiscoveryScreen({ navigation, route }) {
 
   const renderTrendingSearches = () => (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Trending Searches</Text>
+      <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15}}>
+        <Text style={[styles.sectionTitle, {marginBottom: 0}]}>
+          {searchHistory.length > 0 ? 'Lịch sử tìm kiếm' : 'Từ khóa thịnh hành'}
+        </Text>
+        {searchHistory.length > 0 && (
+          <TouchableOpacity onPress={clearSearchHistory}>
+             <Text style={{color: colors.textSecondary, fontSize: 12}}>Xóa lịch sử</Text>
+          </TouchableOpacity>
+        )}
+      </View>
       <View style={styles.tagsContainer}>
-        {TRENDING_SEARCHES.map((item, index) => (
-          <TouchableOpacity key={index} style={styles.tag} onPress={() => { setSearchText(item); setSearchQuery(item); }}>
-             <Feather name="trending-up" size={14} color={colors.textSecondary} />
+        {(searchHistory.length > 0 ? searchHistory : TRENDING_SEARCHES).map((item, index) => (
+          <TouchableOpacity key={index} style={styles.tag} onPress={() => { setSearchText(item); setSearchQuery(item); saveSearchHistory(item); }}>
+             <Feather name={searchHistory.length > 0 ? "clock" : "trending-up"} size={14} color={colors.textSecondary} />
              <Text style={styles.tagText}>{item}</Text>
           </TouchableOpacity>
         ))}
@@ -113,12 +152,12 @@ export default function DiscoveryScreen({ navigation, route }) {
 
   const renderExploreGenres = () => (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Explore Genres</Text>
+      <Text style={styles.sectionTitle}>Khám phá thể loại</Text>
       <View style={styles.genreGrid}>
-        {GENRES.map(genre => (
+        {DISCOVERY_GENRES.map(genre => (
           <TouchableOpacity key={genre.id} style={[styles.genreCard, { backgroundColor: genre.color }]} onPress={() => setCategory(genre.name)}>
             <Feather name={genre.icon} size={24} color={colors.text} style={{ marginBottom: 10 }} />
-            <Text style={styles.genreTitle}>{genre.name}</Text>
+            <Text style={styles.genreTitle} numberOfLines={2}>{genre.name}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -128,16 +167,20 @@ export default function DiscoveryScreen({ navigation, route }) {
   const renderFilters = () => (
     <View style={styles.filterRow}>
       <TouchableOpacity style={styles.filterButton} onPress={cycleStatus}>
-        <Text style={styles.filterText}>Status: {status} <Feather name="refresh-cw" size={12} /></Text>
+        <Text style={styles.filterText}>
+          Trạng thái: {status === 'All' ? 'Tất cả' : (status === 'Completed' ? 'Hoàn thành' : 'Đang ra')} <Feather name="refresh-cw" size={12} />
+        </Text>
       </TouchableOpacity>
       <TouchableOpacity style={styles.filterButton} onPress={cycleSort}>
-        <Text style={styles.filterText}>Sort: {sort === 'views' ? 'Popular' : (sort === 'newest' ? 'Newest' : 'Rating')} <Feather name="refresh-cw" size={12} /></Text>
+        <Text style={styles.filterText}>
+          Xếp theo: {sort === 'views' ? 'Phổ biến' : (sort === 'newest' ? 'Mới nhất' : 'Đánh giá')} <Feather name="refresh-cw" size={12} />
+        </Text>
       </TouchableOpacity>
       <View style={{ flex: 1 }} />
       {(searchQuery || category || status !== 'All' || sort !== 'views') && (
         <TouchableOpacity onPress={clearFilters} style={{flexDirection: 'row', alignItems: 'center'}}>
           <Feather name="x-circle" size={14} color="#EF4444" style={{marginRight: 4}} />
-          <Text style={{color: '#EF4444', fontSize: 12}}>Clear</Text>
+          <Text style={{color: '#EF4444', fontSize: 12}}>Bỏ lọc</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -167,8 +210,8 @@ export default function DiscoveryScreen({ navigation, route }) {
         <View style={[styles.section, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
           <Text style={styles.sectionTitle}>
              {(searchQuery || category || status !== 'All' || sort !== 'views') 
-                ? (category ? `${category} Novels` : 'Search Results') 
-                : 'Popular Now'}
+                ? (category ? `Truyện ${category}` : 'Kết quả tìm kiếm') 
+                : 'Thịnh hành hiện nay'}
           </Text>
           <View style={{ flexDirection: 'row' }}>
              <Feather name="grid" size={20} color={colors.primary} style={{ marginRight: 15 }} />
@@ -186,6 +229,13 @@ export default function DiscoveryScreen({ navigation, route }) {
             renderItem={renderPopularItem}
             scrollEnabled={false}
             columnWrapperStyle={{ justifyContent: 'space-between' }}
+            ListEmptyComponent={() => (
+              <View style={styles.emptyContainer}>
+                <Feather name="search" size={48} color={colors.border} />
+                <Text style={styles.emptyText}>Không tìm thấy truyện nào phù hợp!</Text>
+                <Text style={styles.emptySubText}>Vui lòng thử tìm với từ khóa hoặc bộ lọc khác.</Text>
+              </View>
+            )}
           />
         )}
         <View style={{ height: 40 }} />
@@ -327,5 +377,21 @@ const styles = StyleSheet.create({
   popularSub: {
     color: colors.textSecondary,
     fontSize: 12,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 50,
+  },
+  emptyText: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginTop: 15,
+  },
+  emptySubText: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    marginTop: 5,
   }
 });

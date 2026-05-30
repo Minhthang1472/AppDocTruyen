@@ -51,22 +51,25 @@ export default function RankingScreen({ navigation }) {
   );
 
   const renderTopThree = () => {
-    if (novels.length < 3) return null;
+    if (novels.length === 0) return null;
+    
     const top1 = novels[0];
-    const top2 = novels[1];
-    const top3 = novels[2];
+    const top2 = novels.length > 1 ? novels[1] : null;
+    const top3 = novels.length > 2 ? novels[2] : null;
 
     return (
       <View style={styles.topThreeContainer}>
         {/* Top 2 */}
-        <TouchableOpacity style={styles.topItem} onPress={() => navigation.navigate('NovelDetail', { novelId: top2._id, novelTitle: top2.title })}>
-          <Text style={[styles.rankNumberText, { color: '#FFD700' }]}>2</Text>
-          <Image source={{ uri: top2.coverImage }} style={styles.topImageSmall} />
-          <View style={styles.topOverlay}>
-            <Text style={styles.topTitle} numberOfLines={1}>{top2.title}</Text>
-            <Text style={styles.topViews}><Feather name="trending-up" size={10} /> {(top2.views/1000).toFixed(0)}K</Text>
-          </View>
-        </TouchableOpacity>
+        {top2 ? (
+          <TouchableOpacity style={styles.topItem} onPress={() => navigation.navigate('NovelDetail', { novelId: top2._id, novelTitle: top2.title })}>
+            <Text style={[styles.rankNumberText, { color: '#FFD700' }]}>2</Text>
+            <Image source={{ uri: top2.coverImage }} style={styles.topImageSmall} />
+            <View style={styles.topOverlay}>
+              <Text style={styles.topTitle} numberOfLines={1}>{top2.title}</Text>
+              <Text style={styles.topViews}><Feather name="trending-up" size={10} /> {(top2.views/1000).toFixed(0)}K</Text>
+            </View>
+          </TouchableOpacity>
+        ) : <View style={styles.topItem} />}
 
         {/* Top 1 */}
         <TouchableOpacity style={[styles.topItem, { marginTop: -20, zIndex: 10 }]} onPress={() => navigation.navigate('NovelDetail', { novelId: top1._id, novelTitle: top1.title })}>
@@ -80,14 +83,16 @@ export default function RankingScreen({ navigation }) {
         </TouchableOpacity>
 
         {/* Top 3 */}
-        <TouchableOpacity style={styles.topItem} onPress={() => navigation.navigate('NovelDetail', { novelId: top3._id, novelTitle: top3.title })}>
-          <Text style={[styles.rankNumberText, { color: '#CD7F32' }]}>3</Text>
-          <Image source={{ uri: top3.coverImage }} style={styles.topImageSmall} />
-          <View style={styles.topOverlay}>
-            <Text style={styles.topTitle} numberOfLines={1}>{top3.title}</Text>
-            <Text style={styles.topViews}><Feather name="trending-up" size={10} /> {(top3.views/1000).toFixed(0)}K</Text>
-          </View>
-        </TouchableOpacity>
+        {top3 ? (
+          <TouchableOpacity style={styles.topItem} onPress={() => navigation.navigate('NovelDetail', { novelId: top3._id, novelTitle: top3.title })}>
+            <Text style={[styles.rankNumberText, { color: '#CD7F32' }]}>3</Text>
+            <Image source={{ uri: top3.coverImage }} style={styles.topImageSmall} />
+            <View style={styles.topOverlay}>
+              <Text style={styles.topTitle} numberOfLines={1}>{top3.title}</Text>
+              <Text style={styles.topViews}><Feather name="trending-up" size={10} /> {(top3.views/1000).toFixed(0)}K</Text>
+            </View>
+          </TouchableOpacity>
+        ) : <View style={styles.topItem} />}
       </View>
     );
   };

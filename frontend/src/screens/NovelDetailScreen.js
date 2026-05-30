@@ -1,32 +1,57 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React, { useEffect, useState, useContext, useCallback } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, TextInput, Image, Modal, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { colors } from '../theme/colors';
-import { fetchChapters, api, fetchComments, postComment } from '../utils/api';
-import { TextInput, Image } from 'react-native';
+import { fetchChapters, api, fetchComments, postComment, fetchNovelDetails, rateNovel } from '../utils/api';
+import { LanguageContext } from '../context/LanguageContext';
 
 export default function NovelDetailScreen({ route, navigation }) {
-  // Mock novelId for now if not provided
-  const novelId = route.params?.novelId || 'mock_id';
-  const novelTitle = route.params?.novelTitle || 'Thiên Đạo Đồ Thư Quán';
+  const { t } = useContext(LanguageContext);
+  const novelId = route.params?.novelId;
   
+  const [novel, setNovel] = useState(null);
   const [chapters, setChapters] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [isBookmarked, setIsBookmarked] = useState(false);
+  
+  // Comments state
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
+  
+  // Rating state
+  const [ratingModalVisible, setRatingModalVisible] = useState(false);
+  const [myRating, setMyRating] = useState(5);
+  const [myReviewContent, setMyReviewContent] = useState('');
 
-  useEffect(() => {
-    loadChapters();
-    if (novelId !== 'mock_id') {
-       checkBookmarkStatus();
-       loadComments();
+  useFocusEffect(
+    useCallback(() => {
+      if (novelId) {
+        loadNovelData();
+      }
+    }, [novelId])
+  );
+
+  const loadNovelData = async () => {
+    setLoading(true);
+    if (!novelId) return;
+    
+    const novelData = await fetchNovelDetails(novelId);
+    setNovel(novelData);
+    checkBookmarkStatus();
+    loadComments();
+    const chapsData = await fetchChapters(novelId, 1, 10);
+    if (chapsData.chapters) {
+      setChapters(chapsData.chapters);
+      setPage(chapsData.currentPage);
+      setTotalPages(chapsData.totalPages);
     }
-  }, []);
+    setLoading(false);
+  };
 
   const loadComments = async () => {
      const data = await fetchComments(novelId);
@@ -35,7 +60,7 @@ export default function NovelDetailScreen({ route, navigation }) {
 
   const handlePostComment = async () => {
      if (!newComment.trim()) return;
-     if (novelId === 'mock_id') return alert('Không thể bình luận truyện mẫu');
+     if (!novelId) return;
      try {
         const added = await postComment(novelId, newComment);
         setComments([added, ...comments]);
@@ -45,11 +70,25 @@ export default function NovelDetailScreen({ route, navigation }) {
      }
   };
 
+  const handleSubmitRating = async () => {
+    if (!novelId) return;
+    try {
+      await rateNovel(novelId, { rating: myRating, content: myReviewContent });
+      Alert.alert('Thành công', t('ratingSuccess'));
+      setRatingModalVisible(false);
+      // Reload novel details to update average rating
+      const novelData = await fetchNovelDetails(novelId);
+      setNovel(novelData);
+    } catch (error) {
+      Alert.alert('Lỗi', error.response?.data?.message || 'Không thể đánh giá');
+    }
+  };
+
   const checkBookmarkStatus = async () => {
      try {
         const res = await api.get('/users/library');
         const library = res.data;
-        if (library.some(novel => novel._id === novelId)) {
+        if (library.some(n => n._id === novelId)) {
            setIsBookmarked(true);
         }
      } catch (err) {
@@ -58,65 +97,30 @@ export default function NovelDetailScreen({ route, navigation }) {
   };
 
   const toggleBookmark = async () => {
-     if (novelId === 'mock_id') return alert('Đây là dữ liệu mẫu, không thể lưu!');
+     if (!novelId) return;
      try {
         const res = await api.post('/users/library/toggle', { novelId });
-        setIsBookmarked(res.data.isBookmarked);
+        const newStatus = res.data.isBookmarked;
+        setIsBookmarked(newStatus);
+        
+        // Cập nhật số lượng hiển thị ngay lập tức (Real-time)
+        setNovel(prev => {
+          if (!prev) return prev;
+          let currentCount = prev.followersCount || 0;
+          if (newStatus) {
+            currentCount += 1;
+          } else {
+            currentCount = Math.max(0, currentCount - 1);
+          }
+          return { ...prev, followersCount: currentCount };
+        });
      } catch (err) {
         console.log(err);
      }
   };
 
-  const handleDownloadAll = async () => {
-     if (novelId === 'mock_id') return alert('Không thể tải truyện mẫu');
-     try {
-        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-        alert('Đang tải xuống...');
-        
-        const downloadsStr = await AsyncStorage.getItem('downloads') || '[]';
-        let downloads = JSON.parse(downloadsStr);
-        if (!downloads.find(d => d.novelId === novelId)) {
-           downloads.push({ novelId, title: novelTitle, timestamp: Date.now() });
-           await AsyncStorage.setItem('downloads', JSON.stringify(downloads));
-        }
-        
-        // Save chapter contents offline
-        for (let chap of chapters) {
-           const res = await api.get(`/chapters/${chap._id}`);
-           await AsyncStorage.setItem(`offline_chapter_${chap._id}`, JSON.stringify(res.data));
-        }
-        alert('Tải xuống hoàn tất! Bạn có thể xem trong Hồ sơ > Tải xuống');
-     } catch (err) {
-        alert('Lỗi khi tải xuống');
-     }
-  };
-
-  const loadChapters = async () => {
-    setLoading(true);
-    // If we have a real ID, fetch from API. Otherwise, we just mock some data
-    if (novelId !== 'mock_id') {
-       const data = await fetchChapters(novelId, 1, 10);
-       if (data.chapters) {
-          setChapters(data.chapters);
-          setPage(data.currentPage);
-          setTotalPages(data.totalPages);
-       }
-    } else {
-       // Mock data based on the design
-       setChapters([
-         { _id: '1', chapterNumber: 1, title: 'Chapter 1: The Awakening', isRead: true, time: '2 days ago • 15m read' },
-         { _id: '2', chapterNumber: 2, title: 'Chapter 2: First Steps', isRead: true, time: '2 days ago • 12m read' },
-         { _id: '3', chapterNumber: 3, title: 'Chapter 3: The Gathering Storm', isCurrent: true, time: 'Yesterday • 18m read' },
-         { _id: '4', chapterNumber: 4, title: 'Chapter 4: Shadows in the Mist', time: '12 hours ago • 20m read' },
-         { _id: '5', chapterNumber: 5, title: 'Chapter 5: Hidden Truths', isVip: true, coinsPrice: 50, time: '2 hours ago • 16m read' },
-         { _id: '6', chapterNumber: 6, title: 'Chapter 6: The Duel', isVip: true, coinsPrice: 50, time: 'Just now • 22m read' },
-       ]);
-    }
-    setLoading(false);
-  };
-
   const loadMoreChapters = async () => {
-    if (page >= totalPages || loadingMore || novelId === 'mock_id') return;
+    if (page >= totalPages || loadingMore || !novelId) return;
     setLoadingMore(true);
     const nextPage = page + 1;
     const data = await fetchChapters(novelId, nextPage, 10);
@@ -133,35 +137,69 @@ export default function NovelDetailScreen({ route, navigation }) {
       <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
         <Feather name="arrow-left" size={24} color={colors.text} />
       </TouchableOpacity>
-      <View style={styles.titleContainer}>
-        <Text style={styles.headerTitle} numberOfLines={1}>{novelTitle}</Text>
-        <Text style={styles.chapterCount}>{chapters.length} Chapters</Text>
-      </View>
+      <View style={{flex: 1}} />
       <View style={{flexDirection: 'row', alignItems: 'center'}}>
-        <TouchableOpacity style={[styles.headerIcon, {marginRight: 15}]} onPress={handleDownloadAll}>
-          <Feather name="download" size={24} color="#FFF" />
-        </TouchableOpacity>
         <TouchableOpacity style={[styles.headerIcon, {marginRight: 15}]} onPress={toggleBookmark}>
           <Feather name="heart" size={24} color={isBookmarked ? colors.primary : "#FFF"} />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.headerIcon} onPress={() => navigation.navigate('MainTabs', { screen: 'Discovery' })}>
-          <Feather name="search" size={24} color="#FFF" />
+        <TouchableOpacity style={styles.headerIcon} onPress={() => setRatingModalVisible(true)}>
+          <Feather name="star" size={24} color="#FFD700" />
         </TouchableOpacity>
       </View>
     </View>
   );
 
-  const renderFilterRow = () => (
-    <View style={styles.filterRow}>
-      <View style={styles.sortContainer}>
-        <Text style={styles.sortByText}>Sort by</Text>
-        <TouchableOpacity style={styles.sortBadge} onPress={() => alert('Tính năng sắp xếp đang phát triển')}>
-          <Text style={styles.sortBadgeText}>Newest <Feather name="arrow-down" size={12} /></Text>
-        </TouchableOpacity>
+  const renderNovelInfo = () => (
+    <View style={styles.novelInfoContainer}>
+      <View style={styles.coverRow}>
+        <Image source={{ uri: novel?.coverImage || 'https://via.placeholder.com/150' }} style={styles.detailCover} />
+        <View style={styles.detailRight}>
+          <Text style={styles.detailTitle}>{novel?.title}</Text>
+          <Text style={styles.detailAuthor}>Tác giả: <Text style={{color: '#FFF'}}>{novel?.author || 'Đang cập nhật'}</Text></Text>
+          <Text style={styles.detailStatus}>Trạng thái: <Text style={{color: colors.primary}}>{novel?.status || 'Ongoing'}</Text></Text>
+          
+          <View style={styles.statsGrid}>
+            <View style={styles.statBadge}>
+               <Feather name="eye" size={12} color="#D4B895" />
+               <Text style={styles.statText}>
+                 {(() => {
+                   const v = novel?.views || 0;
+                   if (v >= 1000000) return (v / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+                   if (v >= 1000) return (v / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+                   return v;
+                 })()}
+               </Text>
+            </View>
+            <View style={styles.statBadge}>
+               <Feather name="heart" size={12} color="#D4B895" />
+               <Text style={styles.statText}>{novel?.followersCount || 0}</Text>
+            </View>
+            <View style={styles.statBadge}>
+               <Feather name="star" size={12} color="#D4B895" />
+               <Text style={styles.statText}>{novel?.rating || 0} ({novel?.ratingCount || 0})</Text>
+            </View>
+            <View style={styles.statBadge}>
+               <Feather name="list" size={12} color="#D4B895" />
+               <Text style={styles.statText}>{chapters.length} Chương</Text>
+            </View>
+          </View>
+        </View>
       </View>
-      <TouchableOpacity onPress={() => alert('Tính năng lọc đang phát triển')}>
-        <Feather name="filter" size={20} color={colors.textSecondary} />
-      </TouchableOpacity>
+
+      <View style={styles.genresRow}>
+         {novel?.genres?.map((g, i) => (
+           <View key={i} style={styles.genreBadgeInfo}>
+             <Text style={styles.genreTextInfo}>{g}</Text>
+           </View>
+         ))}
+      </View>
+
+      <View style={styles.descriptionContainer}>
+         <Text style={styles.sectionTitleInfo}>Giới thiệu</Text>
+         <Text style={styles.descriptionText}>{novel?.description || 'Chưa có thông tin giới thiệu cho truyện này.'}</Text>
+      </View>
+      
+      <Text style={[styles.sectionTitleInfo, { marginTop: 25, marginBottom: 15 }]}>Danh sách chương</Text>
     </View>
   );
 
@@ -170,15 +208,13 @@ export default function NovelDetailScreen({ route, navigation }) {
     let itemStyle = styles.chapterItem;
     let titleStyle = styles.chapterTitle;
 
-    if (item.isRead) {
-       iconContent = <Feather name="check" size={16} color={colors.textSecondary} />;
-    } else if (item.isCurrent) {
+    if (item.isCurrent) {
        iconContent = <Feather name="book-open" size={16} color="#000" />;
        itemStyle = [styles.chapterItem, styles.chapterItemCurrent];
        titleStyle = [styles.chapterTitle, { color: colors.primary }];
     } else if (item.isVip) {
        iconContent = <Feather name="lock" size={16} color="#A45BFF" />;
-       itemStyle = [styles.chapterItem, { backgroundColor: '#403A3A' }]; // Lighter gray for locked
+       itemStyle = [styles.chapterItem, { backgroundColor: '#403A3A' }];
     }
 
     return (
@@ -193,15 +229,6 @@ export default function NovelDetailScreen({ route, navigation }) {
           <Text style={titleStyle} numberOfLines={1}>{item.title}</Text>
           <Text style={styles.chapterSub}>{item.time || '10m read'}</Text>
         </View>
-        {item.isVip && (
-           <View style={styles.vipBadge}>
-              <View style={styles.vipIconBg}>
-                <Text style={styles.vipIconText}>VIP</Text>
-              </View>
-              <Text style={styles.coinsText}>{item.coinsPrice}</Text>
-              <Text style={styles.coinsLabel}>Coins</Text>
-           </View>
-        )}
       </TouchableOpacity>
     );
   };
@@ -239,7 +266,6 @@ export default function NovelDetailScreen({ route, navigation }) {
     <SafeAreaView style={styles.container}>
       {renderHeader()}
       <View style={styles.content}>
-        {renderFilterRow()}
         {loading ? (
           <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 50 }} />
         ) : (
@@ -249,9 +275,10 @@ export default function NovelDetailScreen({ route, navigation }) {
             renderItem={renderChapterItem}
             contentContainerStyle={{ paddingBottom: 30 }}
             showsVerticalScrollIndicator={false}
+            ListHeaderComponent={renderNovelInfo}
             ListFooterComponent={
                <View>
-                 {page < totalPages && novelId !== 'mock_id' ? (
+                 {page < totalPages && novelId && (
                    <TouchableOpacity style={styles.loadMoreButton} onPress={loadMoreChapters} disabled={loadingMore}>
                      {loadingMore ? (
                         <ActivityIndicator size="small" color={colors.primary} />
@@ -259,13 +286,56 @@ export default function NovelDetailScreen({ route, navigation }) {
                         <Text style={styles.loadMoreText}>Load More Chapters</Text>
                      )}
                    </TouchableOpacity>
-                 ) : null}
+                 )}
                  {renderComments()}
                </View>
             }
           />
         )}
       </View>
+
+      {/* Rating Modal */}
+      <Modal visible={ratingModalVisible} transparent={true} animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>{t('writeReview')}</Text>
+            
+            {/* Star Selector */}
+            <View style={styles.starsContainer}>
+              {[1, 2, 3, 4, 5].map((star) => (
+                <TouchableOpacity key={star} onPress={() => setMyRating(star)}>
+                  <Ionicons 
+                    name={star <= myRating ? "star" : "star-outline"} 
+                    size={32} 
+                    color="#FFD700" 
+                    style={{ marginHorizontal: 5 }} 
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TextInput
+              style={styles.reviewInput}
+              placeholder={t('ratingPlaceholder')}
+              placeholderTextColor={colors.textSecondary}
+              value={myReviewContent}
+              onChangeText={setMyReviewContent}
+              multiline
+              textAlignVertical="top"
+            />
+
+            <View style={styles.modalActionRow}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setRatingModalVisible(false)}>
+                <Text style={styles.cancelBtnText}>Hủy</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.submitRatingBtn} onPress={handleSubmitRating}>
+                <Text style={styles.submitRatingBtnText}>{t('submitRating')}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
     </SafeAreaView>
   );
 }
@@ -273,7 +343,7 @@ export default function NovelDetailScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#3D332D', // Dark brown header background from design
+    backgroundColor: '#3D332D',
   },
   header: {
     flexDirection: 'row',
@@ -292,24 +362,37 @@ const styles = StyleSheet.create({
   titleContainer: {
     flex: 1,
     alignItems: 'center',
+    paddingHorizontal: 10,
+    marginTop: 5,
   },
   headerTitle: {
     color: '#FFF',
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 8,
   },
-  chapterCount: {
-    color: '#D4B895',
-    fontSize: 12,
-    marginTop: 2,
-  },
-  searchButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+  statsRow: {
+    flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  statBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(212, 184, 149, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  statText: {
+    color: '#D4B895',
+    fontSize: 11,
+    marginLeft: 4,
+    fontWeight: '600',
   },
   content: {
     flex: 1,
@@ -317,38 +400,84 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingHorizontal: 20,
+  },
+  novelInfoContainer: {
     paddingTop: 20,
   },
-  filterRow: {
+  coverRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 15,
   },
-  sortContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  detailCover: {
+    width: 100,
+    height: 140,
+    borderRadius: 8,
   },
-  sortByText: {
-    color: '#A09D9A',
-    marginRight: 10,
-    fontSize: 14,
+  detailRight: {
+    flex: 1,
+    marginLeft: 15,
+    justifyContent: 'center',
   },
-  sortBadge: {
-    backgroundColor: '#3D2A1D',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 15,
-  },
-  sortBadgeText: {
-    color: '#D4B895',
+  detailTitle: {
+    fontSize: 22,
     fontWeight: 'bold',
+    color: '#3D2A1D',
+    marginBottom: 5,
+  },
+  detailAuthor: {
+    fontSize: 14,
+    color: '#A09D9A',
+    marginBottom: 2,
+  },
+  detailStatus: {
+    fontSize: 14,
+    color: '#A09D9A',
+    marginBottom: 10,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  genresRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 15,
+  },
+  genreBadgeInfo: {
+    backgroundColor: 'rgba(234, 88, 12, 0.1)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 15,
+    marginRight: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(234, 88, 12, 0.2)',
+  },
+  genreTextInfo: {
+    color: colors.primary,
     fontSize: 12,
+    fontWeight: 'bold',
+  },
+  descriptionContainer: {
+    backgroundColor: '#FAF7F5',
+    padding: 15,
+    borderRadius: 12,
+  },
+  sectionTitleInfo: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#3D2A1D',
+    marginBottom: 10,
+  },
+  descriptionText: {
+    fontSize: 14,
+    color: '#555',
+    lineHeight: 22,
   },
   chapterItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#3D2A1D', // Dark card bg
+    backgroundColor: '#3D2A1D',
     borderRadius: 12,
     padding: 15,
     marginBottom: 12,
@@ -382,32 +511,6 @@ const styles = StyleSheet.create({
   chapterSub: {
     color: '#A09D9A',
     fontSize: 12,
-  },
-  vipBadge: {
-    alignItems: 'center',
-    marginLeft: 10,
-  },
-  vipIconBg: {
-    borderWidth: 1,
-    borderColor: '#A09D9A',
-    borderRadius: 4,
-    paddingHorizontal: 4,
-    paddingVertical: 2,
-    marginBottom: 2,
-  },
-  vipIconText: {
-    color: '#A09D9A',
-    fontSize: 8,
-    fontWeight: 'bold',
-  },
-  coinsText: {
-    color: '#FFF',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  coinsLabel: {
-    color: '#A09D9A',
-    fontSize: 8,
   },
   loadMoreButton: {
     alignItems: 'center',
@@ -471,5 +574,66 @@ const styles = StyleSheet.create({
   },
   commentText: {
     color: '#333',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 20,
+  },
+  starsContainer: {
+    flexDirection: 'row',
+    marginBottom: 20,
+  },
+  reviewInput: {
+    width: '100%',
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    padding: 15,
+    color: colors.text,
+    minHeight: 100,
+    marginBottom: 20,
+  },
+  modalActionRow: {
+    flexDirection: 'row',
+    width: '100%',
+    justifyContent: 'space-between',
+  },
+  cancelBtn: {
+    flex: 1,
+    padding: 15,
+    alignItems: 'center',
+    borderRadius: 8,
+    marginRight: 10,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  cancelBtnText: {
+    color: colors.textSecondary,
+    fontWeight: 'bold',
+  },
+  submitRatingBtn: {
+    flex: 2,
+    backgroundColor: colors.primary,
+    padding: 15,
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  submitRatingBtnText: {
+    color: '#fff',
+    fontWeight: 'bold',
   }
 });

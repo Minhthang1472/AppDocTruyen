@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, SafeAreaView, Dimensions, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, SafeAreaView, Dimensions, ActivityIndicator, Alert } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
-import { api } from '../utils/api';
+import { api, unlockChapter } from '../utils/api';
 import Slider from '@react-native-community/slider';
 import * as Brightness from 'expo-brightness';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -16,6 +16,8 @@ export default function ReadingScreen({ route, navigation }) {
 
   const [chapter, setChapter] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [hasAccess, setHasAccess] = useState(true);
+  const [coinsPrice, setCoinsPrice] = useState(0);
 
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [fontSize, setFontSize] = useState(18);
@@ -23,7 +25,12 @@ export default function ReadingScreen({ route, navigation }) {
   const [bgColor, setBgColor] = useState('#1A1816'); // Dark by default
   const [textColor, setTextColor] = useState('#FFFFFF');
   const [brightness, setBrightness] = useState(0.5);
-  const [readingMode, setReadingMode] = useState('scroll'); // 'scroll' or 'page'
+  
+  // Auto scroll feature
+  const [autoScroll, setAutoScroll] = useState(false);
+  const scrollViewRef = useRef(null);
+  const scrollY = useRef(0);
+  const scrollInterval = useRef(null);
 
   useEffect(() => {
     (async () => {
@@ -43,6 +50,10 @@ export default function ReadingScreen({ route, navigation }) {
   useEffect(() => {
      loadSettings();
      loadChapterContent();
+     
+     return () => {
+       if (scrollInterval.current) clearInterval(scrollInterval.current);
+     };
   }, []);
 
   const loadSettings = async () => {
@@ -73,7 +84,13 @@ export default function ReadingScreen({ route, navigation }) {
      try {
         const res = await api.get(`/chapters/${chapterId}`);
         setChapter(res.data);
-        // Lưu lịch sử
+        if (res.data.hasAccess === false) {
+           setHasAccess(false);
+           setCoinsPrice(res.data.coinsPrice || 50);
+        } else {
+           setHasAccess(true);
+        }
+        
         if (novelId) {
            await api.post('/users/history/add', { novelId, chapterId });
         }
@@ -83,7 +100,18 @@ export default function ReadingScreen({ route, navigation }) {
      setLoading(false);
   };
 
-  // Simple toggle for the modal
+  const handleUnlock = async () => {
+    try {
+      setLoading(true);
+      const res = await unlockChapter(chapterId);
+      Alert.alert('Thành công', `Bạn đã mở khóa chương này. Số dư còn: ${res.coinsLeft} Coins`);
+      loadChapterContent();
+    } catch (err) {
+      Alert.alert('Lỗi', err.response?.data?.message || 'Không thể mở khóa. Có thể bạn không đủ Coin.');
+      setLoading(false);
+    }
+  };
+
   const toggleSettings = () => {
     setSettingsVisible(!settingsVisible);
   };
@@ -94,15 +122,26 @@ export default function ReadingScreen({ route, navigation }) {
     saveSettings({ bgColor: bg, textColor: text });
   };
 
-  const changeFontSize = (delta) => {
-    const newSize = Math.max(12, Math.min(30, fontSize + delta));
-    setFontSize(newSize);
-    saveSettings({ fontSize: newSize });
-  };
-
   const handleFontFamilyChange = (font) => {
     setFontFamily(font);
     saveSettings({ fontFamily: font });
+  };
+
+  const toggleAutoScroll = () => {
+    if (autoScroll) {
+      clearInterval(scrollInterval.current);
+      setAutoScroll(false);
+    } else {
+      setAutoScroll(true);
+      scrollInterval.current = setInterval(() => {
+        scrollY.current += 1.5;
+        scrollViewRef.current?.scrollTo({ y: scrollY.current, animated: false });
+      }, 50);
+    }
+  };
+
+  const handleScroll = (event) => {
+    scrollY.current = event.nativeEvent.contentOffset.y;
   };
 
   if (loading) {
@@ -122,19 +161,47 @@ export default function ReadingScreen({ route, navigation }) {
          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
            <Feather name="arrow-left" size={24} color={textColor} />
          </TouchableOpacity>
+         
+         <TouchableOpacity 
+           style={[styles.autoScrollBtn, autoScroll && {backgroundColor: colors.primary}]} 
+           onPress={toggleAutoScroll}
+         >
+           <Feather name={autoScroll ? "pause" : "chevrons-down"} size={20} color={autoScroll ? "#fff" : textColor} />
+         </TouchableOpacity>
       </View>
+      
       <ScrollView 
+         ref={scrollViewRef}
          contentContainerStyle={styles.scrollContent} 
          showsVerticalScrollIndicator={false}
-         pagingEnabled={readingMode === 'page'}
-         snapToInterval={readingMode === 'page' ? height - 100 : null}
+         onScroll={handleScroll}
+         scrollEventThrottle={16}
       >
         <Text style={[styles.title, { color: textColor, fontSize: fontSize + 6, fontFamily: fontFamily === 'Serif' ? 'serif' : fontFamily === 'Mono' ? 'monospace' : 'sans-serif' }]}>
           {chapterTitle}
         </Text>
-        <Text style={[styles.content, { color: textColor, fontSize: fontSize, fontFamily: fontFamily === 'Serif' ? 'serif' : fontFamily === 'Mono' ? 'monospace' : 'sans-serif' }]}>
-          {chapterContent}
-        </Text>
+        
+        {hasAccess ? (
+          <Text style={[styles.content, { color: textColor, fontSize: fontSize, fontFamily: fontFamily === 'Serif' ? 'serif' : fontFamily === 'Mono' ? 'monospace' : 'sans-serif' }]}>
+            {chapterContent}
+          </Text>
+        ) : (
+          <View style={styles.vipContainer}>
+            <View style={styles.blurEffect}>
+               <Text style={[styles.content, { color: textColor, opacity: 0.3, fontSize: fontSize }]}>
+                 Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam...
+               </Text>
+            </View>
+            <View style={styles.lockBox}>
+               <Feather name="lock" size={40} color="#FFD700" style={{marginBottom: 10}} />
+               <Text style={styles.lockTitle}>Chương VIP</Text>
+               <Text style={styles.lockDesc}>Bạn cần dùng Coin để mở khóa chương này</Text>
+               <TouchableOpacity style={styles.unlockBtn} onPress={handleUnlock}>
+                 <Text style={styles.unlockBtnText}>Mở khóa ({coinsPrice} Coins)</Text>
+               </TouchableOpacity>
+            </View>
+          </View>
+        )}
       </ScrollView>
 
       {/* Nút Cài đặt Nổi (FAB) */}
@@ -152,7 +219,7 @@ export default function ReadingScreen({ route, navigation }) {
           <TouchableOpacity activeOpacity={1} style={styles.settingsContainer}>
             <View style={styles.dragHandle} />
             
-            {/* Brightness / Font Size Sliders (Real UI) */}
+            {/* Brightness / Font Size Sliders */}
             <View style={styles.settingRow}>
                <Feather name="sun" size={18} color={colors.text} />
                <Slider
@@ -237,28 +304,9 @@ export default function ReadingScreen({ route, navigation }) {
                </TouchableOpacity>
             </View>
 
-            {/* Reading Mode */}
-            <Text style={styles.sectionTitle}>Chế độ đọc</Text>
-            <View style={styles.optionsRow}>
-               <TouchableOpacity 
-                  style={[styles.modeBox, readingMode === 'scroll' && styles.modeBoxActive]}
-                  onPress={() => setReadingMode('scroll')}
-               >
-                  <Feather name="arrow-down" size={16} color={readingMode === 'scroll' ? colors.primary : colors.textSecondary} style={{ marginRight: 5 }} />
-                  <Text style={readingMode === 'scroll' ? styles.modeTextActive : styles.modeText}>Cuộn dọc</Text>
-               </TouchableOpacity>
-               <TouchableOpacity 
-                  style={[styles.modeBox, readingMode === 'page' && styles.modeBoxActive]}
-                  onPress={() => setReadingMode('page')}
-               >
-                  <Feather name="book-open" size={16} color={readingMode === 'page' ? colors.primary : colors.textSecondary} style={{ marginRight: 5 }} />
-                  <Text style={readingMode === 'page' ? styles.modeTextActive : styles.modeText}>Lật trang</Text>
-               </TouchableOpacity>
-            </View>
-
             {/* Save Settings Button */}
             <TouchableOpacity style={styles.saveButton} onPress={toggleSettings}>
-               <Text style={styles.saveButtonText}>Lưu cài đặt</Text>
+               <Text style={styles.saveButtonText}>Đóng cài đặt</Text>
             </TouchableOpacity>
 
           </TouchableOpacity>
@@ -275,11 +323,20 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 10,
     zIndex: 10,
   },
   backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(128,128,128,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  autoScrollBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -294,10 +351,52 @@ const styles = StyleSheet.create({
   title: {
     fontWeight: 'bold',
     marginBottom: 20,
-    marginTop: 20,
+    marginTop: 10,
   },
   content: {
-    lineHeight: 30,
+    lineHeight: 32,
+  },
+  vipContainer: {
+    position: 'relative',
+    marginTop: 20,
+    alignItems: 'center',
+  },
+  blurEffect: {
+    width: '100%',
+    overflow: 'hidden',
+  },
+  lockBox: {
+    position: 'absolute',
+    top: 50,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    padding: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    width: '90%',
+    borderWidth: 1,
+    borderColor: '#FFD700',
+  },
+  lockTitle: {
+    color: '#FFD700',
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  lockDesc: {
+    color: '#CCC',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  unlockBtn: {
+    backgroundColor: colors.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 25,
+    borderRadius: 25,
+  },
+  unlockBtnText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
   modalOverlay: {
     flex: 1,
@@ -323,20 +422,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 25,
-  },
-  sliderTrack: {
-    flex: 1,
-    height: 2,
-    backgroundColor: colors.border,
-    marginHorizontal: 15,
-    justifyContent: 'center',
-  },
-  sliderThumb: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: colors.primary,
-    position: 'absolute',
   },
   fontSizeLabel: {
     color: colors.textSecondary,
@@ -390,28 +475,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  modeBox: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    backgroundColor: '#2C2520',
-    borderRadius: 8,
-    marginHorizontal: 5,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  modeBoxActive: {
-    borderColor: colors.primary,
-  },
-  modeTextActive: {
-    color: colors.primary,
-    fontWeight: 'bold',
-  },
-  modeText: {
-    color: colors.textSecondary,
-  },
   saveButton: {
     backgroundColor: colors.primary,
     borderRadius: 12,
@@ -436,9 +499,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     elevation: 10,
     zIndex: 9999,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
   }
 });

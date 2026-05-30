@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Modal, Tex
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
-import { api } from '../utils/api';
+import { api, getProfile } from '../utils/api';
 import { LanguageContext } from '../context/LanguageContext';
 import * as ImagePicker from 'expo-image-picker';
 
@@ -12,10 +12,10 @@ const MENU_ITEMS = {
     { id: 'history', title: 'readingHistory', icon: 'clock' },
     { id: 'downloads', title: 'downloads', icon: 'download' },
     { id: 'bookmarks', title: 'bookmarks', icon: 'bookmark' },
+    { id: 'studio', title: 'myStudio', icon: 'pen-tool', color: '#FFC107' },
   ],
   accountSettings: [
     { id: 'subscription', title: 'subscriptionPlan', icon: 'award' },
-    { id: 'security', title: 'security', icon: 'shield' },
     { id: 'notifications', title: 'notifications', icon: 'bell' },
   ],
   appSettings: [
@@ -27,24 +27,40 @@ const MENU_ITEMS = {
 
 export default function ProfileScreen({ navigation }) {
   const [user, setUser] = useState(null);
-  const [editModal, setEditModal] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [stats, setStats] = useState({ storiesRead: 0, following: 0, points: '15k' });
+  const [stats, setStats] = useState({ storiesRead: 0, following: 0, points: '0 Coins' });
   const { t } = React.useContext(LanguageContext);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
-       loadUser();
+      loadUser();
     });
     return unsubscribe;
   }, [navigation]);
 
   const loadUser = async () => {
-    const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-    const userInfo = await AsyncStorage.getItem('userInfo');
-    if (userInfo) {
-       setUser(JSON.parse(userInfo));
-       setNewName(JSON.parse(userInfo).username);
+    try {
+      const data = await getProfile();
+      setUser(data);
+      setNewName(data.username);
+
+      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+      await AsyncStorage.setItem('userInfo', JSON.stringify(data));
+
+      // Fetch stats
+      const resStats = await api.get('/users/profile/stats');
+      setStats({
+        storiesRead: resStats.data.storiesRead || 0,
+        following: resStats.data.following || 0,
+        points: data.coins !== undefined ? `${data.coins} Coins` : '0 Coins'
+      });
+    } catch (e) {
+      console.log('Error loading profile:', e);
+      // Fallback
+      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+      const userInfo = await AsyncStorage.getItem('userInfo');
+      if (userInfo) {
+        setUser(JSON.parse(userInfo));
+      }
     }
   };
 
@@ -55,60 +71,32 @@ export default function ProfileScreen({ navigation }) {
     navigation.replace('Login');
   };
 
-  const handleSaveProfile = async () => {
-     try {
-        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-        const res = await api.put('/users/profile', { username: newName });
-        await AsyncStorage.setItem('userInfo', JSON.stringify(res.data));
-        setUser(res.data);
-        setEditModal(false);
-     } catch (err) {
-        alert('Lỗi cập nhật');
-     }
-  };
 
-  const handlePickAvatar = async () => {
-     let result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.5,
-        base64: true,
-     });
-
-     if (!result.canceled) {
-        const base64Image = `data:image/jpeg;base64,${result.assets[0].base64}`;
-        try {
-           const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-           const res = await api.put('/users/profile', { avatar: base64Image });
-           await AsyncStorage.setItem('userInfo', JSON.stringify(res.data));
-           setUser(res.data);
-        } catch (err) {
-           alert('Lỗi cập nhật Avatar');
-        }
-     }
-  };
 
   const renderHeader = () => (
     <View style={styles.profileHeader}>
       <View style={styles.avatarContainer}>
-        <TouchableOpacity onPress={handlePickAvatar}>
-           <Image 
-             source={{ uri: user?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200&auto=format&fit=crop' }} 
-             style={styles.avatar} 
-           />
-           <View style={styles.cameraBadge}>
-             <Feather name="camera" size={14} color="#000" />
-           </View>
-        </TouchableOpacity>
+        <View>
+          <Image
+            source={{ uri: user?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200&auto=format&fit=crop' }}
+            style={styles.avatar}
+          />
+        </View>
         <View style={styles.premiumBadge}>
           <Ionicons name="star" size={12} color="#000" />
         </View>
       </View>
       <Text style={styles.userName}>{user?.username || 'Guest'}</Text>
-      <Text style={styles.userRole}>{t('premiumMember')}</Text>
-      
-      <TouchableOpacity style={styles.editButton} onPress={() => setEditModal(true)}>
+      {user?.bio ? (
+        <Text style={styles.userBio}>{user.bio}</Text>
+      ) : null}
+      <Text style={styles.userRole}>{user?.isPremium ? 'Thành viên VIP' : 'Thành viên thường'}</Text>
+
+      <View style={{ backgroundColor: 'rgba(197, 165, 255, 0.1)', paddingHorizontal: 15, paddingVertical: 5, borderRadius: 20, marginBottom: 15 }}>
+        <Text style={{ color: colors.primary, fontWeight: 'bold' }}>{user?.coins || 0} Coins</Text>
+      </View>
+
+      <TouchableOpacity style={styles.editButton} onPress={() => navigation.navigate('EditProfile')}>
         <Feather name="edit-2" size={14} color={colors.textSecondary} style={{ marginRight: 8 }} />
         <Text style={styles.editButtonText}>{t('editProfile')}</Text>
       </TouchableOpacity>
@@ -139,19 +127,20 @@ export default function ProfileScreen({ navigation }) {
       <Text style={styles.menuSectionTitle}>{title}</Text>
       <View style={styles.menuList}>
         {items.map((item, index) => (
-          <TouchableOpacity 
-             key={item.id} 
-             style={[styles.menuItem, index !== items.length - 1 && styles.menuItemBorder]}
-             onPress={() => {
-                if (item.id === 'history') navigation.navigate('ReadingHistory');
-                if (item.id === 'downloads') navigation.navigate('DownloadedSeries');
-                if (item.id === 'bookmarks') navigation.navigate('Library');
-                if (item.id === 'subscription') navigation.navigate('Subscription');
-                if (item.id === 'security') navigation.navigate('Security');
-                if (item.id === 'notifications') navigation.navigate('Notifications');
-                if (item.id === 'language') navigation.navigate('Language');
-                if (item.id === 'help') navigation.navigate('HelpSupport');
-             }}
+          <TouchableOpacity
+            key={item.id}
+            style={[styles.menuItem, index !== items.length - 1 && styles.menuItemBorder]}
+            onPress={() => {
+              if (item.id === 'history') navigation.navigate('ReadingHistory');
+              if (item.id === 'downloads') navigation.navigate('DownloadedSeries');
+              if (item.id === 'bookmarks') navigation.navigate('Library');
+              if (item.id === 'studio') navigation.navigate('Studio');
+              if (item.id === 'subscription') navigation.navigate('Subscription');
+              if (item.id === 'notifications') navigation.navigate('Notifications');
+              if (item.id === 'preferences') navigation.navigate('Preferences');
+              if (item.id === 'language') navigation.navigate('Language');
+              if (item.id === 'help') navigation.navigate('HelpSupport');
+            }}
           >
             <View style={styles.menuItemLeft}>
               <Feather name={item.icon} size={20} color={item.color || colors.primary} style={{ marginRight: 15 }} />
@@ -166,15 +155,15 @@ export default function ProfileScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={{flexDirection: 'row', justifyContent: 'flex-end', padding: 15}}>
-         <TouchableOpacity onPress={() => navigation.navigate('Notifications')}>
-            <Feather name="bell" size={24} color={colors.text} />
-         </TouchableOpacity>
+      <View style={{ flexDirection: 'row', justifyContent: 'flex-end', padding: 15 }}>
+        <TouchableOpacity onPress={() => navigation.navigate('Notifications')}>
+          <Feather name="bell" size={24} color={colors.text} />
+        </TouchableOpacity>
       </View>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20 }}>
         {renderHeader()}
         {renderStats()}
-        
+
         {renderMenuSection(t('readingActivity'), MENU_ITEMS.readingActivity)}
         {renderMenuSection(t('accountSettings'), MENU_ITEMS.accountSettings)}
         {renderMenuSection(t('appSettings'), MENU_ITEMS.appSettings)}
@@ -186,29 +175,6 @@ export default function ProfileScreen({ navigation }) {
 
         <View style={{ height: 40 }} />
       </ScrollView>
-      
-      <Modal visible={editModal} transparent={true} animationType="fade">
-         <View style={{flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center'}}>
-            <View style={{backgroundColor: colors.surface, padding: 20, borderRadius: 12, width: '80%'}}>
-               <Text style={{color: colors.text, fontSize: 18, fontWeight: 'bold', marginBottom: 15}}>Edit Profile</Text>
-               <TextInput 
-                  style={{backgroundColor: colors.background, color: colors.text, padding: 10, borderRadius: 8, marginBottom: 15}}
-                  value={newName}
-                  onChangeText={setNewName}
-                  placeholder="Username"
-                  placeholderTextColor={colors.textSecondary}
-               />
-               <View style={{flexDirection: 'row', justifyContent: 'flex-end'}}>
-                  <TouchableOpacity onPress={() => setEditModal(false)} style={{padding: 10, marginRight: 10}}>
-                     <Text style={{color: colors.textSecondary}}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={handleSaveProfile} style={{padding: 10, backgroundColor: colors.primary, borderRadius: 8}}>
-                     <Text style={{color: '#000', fontWeight: 'bold'}}>Save</Text>
-                  </TouchableOpacity>
-               </View>
-            </View>
-         </View>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -246,24 +212,18 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#1E1E1E',
   },
-  cameraBadge: {
-    position: 'absolute',
-    top: 5,
-    right: 5,
-    backgroundColor: '#FFF',
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#1E1E1E',
-  },
   userName: {
     color: colors.text,
     fontSize: 22,
     fontWeight: 'bold',
     marginBottom: 5,
+  },
+  userBio: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 8,
+    paddingHorizontal: 30,
   },
   userRole: {
     color: colors.primary,

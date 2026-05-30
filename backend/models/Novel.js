@@ -9,6 +9,10 @@ const novelSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  uploader: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
   coverImage: {
     type: String,
     required: true
@@ -33,7 +37,15 @@ const novelSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  ratingCount: {
+    type: Number,
+    default: 0
+  },
   chaptersCount: {
+    type: Number,
+    default: 0
+  },
+  followersCount: {
     type: Number,
     default: 0
   },

@@ -21,9 +21,10 @@ router.post('/register', async (req, res) => {
     const newUser = new User({
       username,
       email,
-      password: hashedPassword
+      password: hashedPassword,
+      coins: 500
     });
-    await newUser.save();
+    const savedUser = await newUser.save();
 
     const token = jwt.sign({ id: newUser._id }, JWT_SECRET, { expiresIn: '30d' });
     res.status(201).json({ token, user: { id: newUser._id, username, email, isPremium: newUser.isPremium } });

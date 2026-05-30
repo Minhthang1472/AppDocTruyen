@@ -43,13 +43,23 @@ router.get('/history', verifyToken, async (req, res) => {
 
 // ================= PROFILE =================
 
+router.get('/profile/me', verifyToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('-password');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 router.get('/profile/stats', verifyToken, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
     res.json({
       storiesRead: user.readingHistory.length,
       following: user.library.length,
-      points: '15k'
+      points: `${user.coins} Coins`
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -58,12 +68,13 @@ router.get('/profile/stats', verifyToken, async (req, res) => {
 
 router.put('/profile', verifyToken, async (req, res) => {
   try {
-    const { username, avatar } = req.body;
+    const { username, avatar, bio } = req.body;
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
     
     if (username) user.username = username;
-    if (avatar) user.avatar = avatar; // assuming you added avatar field to User model earlier or it allows flexibility
+    if (avatar) user.avatar = avatar;
+    if (bio !== undefined) user.bio = bio;
 
     await user.save();
     
@@ -98,17 +109,29 @@ router.post('/library/toggle', verifyToken, async (req, res) => {
   try {
     const { novelId } = req.body;
     const user = await User.findById(req.user.id);
-    const index = user.library.indexOf(novelId);
+    const Novel = require('../models/Novel');
+    const novel = await Novel.findById(novelId);
+
+    const stringLibrary = user.library.map(id => id.toString());
+    const index = stringLibrary.indexOf(novelId.toString());
     
     if (index > -1) {
       // Remove
       user.library.splice(index, 1);
       await user.save();
+      if (novel) {
+        novel.followersCount = Math.max(0, (novel.followersCount || 0) - 1);
+        await novel.save();
+      }
       res.json({ message: 'Đã xóa khỏi thư viện', isBookmarked: false });
     } else {
       // Add
       user.library.push(novelId);
       await user.save();
+      if (novel) {
+        novel.followersCount = (novel.followersCount || 0) + 1;
+        await novel.save();
+      }
       res.json({ message: 'Đã thêm vào thư viện', isBookmarked: true });
     }
   } catch (err) {

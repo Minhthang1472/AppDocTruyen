@@ -30,6 +30,26 @@ export default {
   languageTitle: 'Ngôn ngữ',
   languageSubtitle: 'Chọn ngôn ngữ hiển thị cho giao diện và nội dung ưu tiên.',
 
+  // Studio & Rating
+  myStudio: 'Quản lý Truyện (Studio)',
+  createNovel: 'Tạo Truyện Mới',
+  addChapter: 'Thêm Chương',
+  coverImageUrl: 'Link Ảnh Bìa (URL)',
+  novelTitle: 'Tên Truyện',
+  novelDesc: 'Giới thiệu nội dung',
+  genresTags: 'Thể loại (cách nhau bởi dấu phẩy)',
+  publishNovel: 'Đăng Truyện',
+  chapterNum: 'Chương số',
+  chapterTitle: 'Tiêu đề chương',
+  chapterContent: 'Nội dung chương',
+  publishChapter: 'Đăng Chương',
+  writeReview: 'Viết Đánh Giá',
+  submitRating: 'Gửi Đánh Giá',
+  ratingSuccess: 'Đánh giá thành công!',
+  novelCreated: 'Đã tạo truyện thành công!',
+  chapterCreated: 'Đã thêm chương thành công!',
+  ratingPlaceholder: 'Cảm nghĩ của bạn về bộ truyện này...',
+
   // Subscription Screen
   unlockPremium: 'Mở khóa',
   premiumReading: 'Đọc truyện Premium',

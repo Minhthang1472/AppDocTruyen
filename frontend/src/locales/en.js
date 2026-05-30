@@ -30,6 +30,26 @@ export default {
   languageTitle: 'Language',
   languageSubtitle: 'Select the display language for the interface and prioritized content.',
 
+  // Studio & Rating
+  myStudio: 'My Studio',
+  createNovel: 'Create Novel',
+  addChapter: 'Add Chapter',
+  coverImageUrl: 'Cover Image URL',
+  novelTitle: 'Novel Title',
+  novelDesc: 'Description',
+  genresTags: 'Genres (comma separated)',
+  publishNovel: 'Publish Novel',
+  chapterNum: 'Chapter Number',
+  chapterTitle: 'Chapter Title',
+  chapterContent: 'Chapter Content',
+  publishChapter: 'Publish Chapter',
+  writeReview: 'Write Review',
+  submitRating: 'Submit Rating',
+  ratingSuccess: 'Rating submitted successfully!',
+  novelCreated: 'Novel created successfully!',
+  chapterCreated: 'Chapter added successfully!',
+  ratingPlaceholder: 'Your thoughts on this novel...',
+
   // Subscription Screen
   unlockPremium: 'Unlock Premium',
   premiumReading: 'Reading',
