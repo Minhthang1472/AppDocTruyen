@@ -1,13 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, Image, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
-import { api } from '../utils/api';
+import { api , getImageUrl } from '../utils/api';
+import { LanguageContext } from '../context/LanguageContext';
 
 const TABS = ['Following', 'History', 'Download'];
 
 export default function LibraryScreen({ navigation }) {
+  const { t } = useContext(LanguageContext);
   const [collection, setCollection] = useState([]);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -52,7 +54,9 @@ export default function LibraryScreen({ navigation }) {
           style={[styles.tab, activeTab === tab && styles.activeTab]}
           onPress={() => setActiveTab(tab)}
         >
-          <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>{tab}</Text>
+          <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
+            {tab === 'Following' ? t('following') : (tab === 'History' ? t('readingHistory') : t('downloads'))}
+          </Text>
         </TouchableOpacity>
       ))}
     </View>
@@ -65,14 +69,14 @@ export default function LibraryScreen({ navigation }) {
     if (!novel) return null;
     return (
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Continue Reading</Text>
+        <Text style={styles.sectionTitle}>{t('continueReading')}</Text>
         <TouchableOpacity style={styles.continueCard} onPress={() => navigation.navigate('NovelDetail', { novelId: novel._id })}>
-          <Image source={{ uri: novel.coverImage }} style={styles.continueImage} />
+          <Image source={{ uri: novel.coverImage ? getImageUrl(novel.coverImage) : 'https://via.placeholder.com/150' }} style={styles.continueImage} />
           <View style={styles.continueOverlay}>
             <View style={styles.tagSmall}>
               <Text style={styles.tagTextSmall}>NOVEL</Text>
             </View>
-            <Text style={{color: '#A09D9A', fontSize: 10, marginLeft: 10}}>Recently Read</Text>
+            <Text style={{color: '#A09D9A', fontSize: 10, marginLeft: 10}}>{t('recentlyRead')}</Text>
           </View>
         </TouchableOpacity>
         <View style={styles.continueInfo}>
@@ -80,8 +84,8 @@ export default function LibraryScreen({ navigation }) {
           <Text style={styles.continueDesc} numberOfLines={2}>{novel.description}</Text>
           
           <View style={styles.progressRow}>
-             <Text style={styles.progressText}>Chapter {item.lastChapter?.chapterNumber || 1}</Text>
-             <Text style={styles.progressText}>50% Complete</Text>
+             <Text style={styles.progressText}>{t('chapter')} {item.lastChapter?.chapterNumber || 1}</Text>
+             <Text style={styles.progressText}>50{t('chapterComplete')}</Text>
           </View>
           <View style={styles.progressBarBg}>
              <View style={[styles.progressBarFill, { width: '50%' }]} />
@@ -89,7 +93,7 @@ export default function LibraryScreen({ navigation }) {
 
           <TouchableOpacity style={styles.resumeButton} onPress={() => navigation.navigate('Reading', { novelId: novel._id, chapterId: item.lastChapter?._id || '' })}>
             <Ionicons name="play" size={16} color="#000" />
-            <Text style={styles.resumeButtonText}>Resume Chapter {item.lastChapter?.chapterNumber || 1}</Text>
+            <Text style={styles.resumeButtonText}>{t('resumeChapter')}{item.lastChapter?.chapterNumber || 1}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -101,7 +105,7 @@ export default function LibraryScreen({ navigation }) {
     if (!novel) return null;
     return (
       <TouchableOpacity style={styles.collectionCard} onPress={() => navigation.navigate('NovelDetail', { novelId: novel._id, novelTitle: novel.title })}>
-        <Image source={{ uri: novel.coverImage || 'https://via.placeholder.com/150' }} style={styles.collectionImage} />
+        <Image source={{ uri: novel.coverImage ? getImageUrl(novel.coverImage) : 'https://via.placeholder.com/150' || 'https://via.placeholder.com/150' }} style={styles.collectionImage} />
         <View style={styles.progressBarBgSmall}>
            <View style={[styles.progressBarFillSmall, { width: `${Math.random() * 80 + 10}%` }]} />
         </View>
@@ -116,7 +120,7 @@ export default function LibraryScreen({ navigation }) {
       {renderHeader()}
       
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20 }}>
-        <Text style={styles.pageTitle}>Library</Text>
+        <Text style={styles.pageTitle}>{t('library')}</Text>
         {renderTabs()}
 
         {loading ? (
@@ -126,7 +130,7 @@ export default function LibraryScreen({ navigation }) {
             {renderContinueReading()}
             
             <View style={[styles.section, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
-              <Text style={styles.sectionTitle}>Your Collection</Text>
+              <Text style={styles.sectionTitle}>{t('yourCollection')}</Text>
               <View style={{ flexDirection: 'row' }}>
                  <Feather name="filter" size={18} color={colors.textSecondary} style={{ marginRight: 15 }} />
                  <Feather name="grid" size={18} color={colors.textSecondary} />
@@ -142,7 +146,7 @@ export default function LibraryScreen({ navigation }) {
               columnWrapperStyle={{ justifyContent: 'space-between' }}
               ListEmptyComponent={
                  <View style={{padding: 20, alignItems: 'center'}}>
-                    <Text style={{color: colors.textSecondary}}>Chưa có truyện nào trong mục này.</Text>
+                    <Text style={{color: colors.textSecondary}}>{t('emptyLibrary')}</Text>
                  </View>
               }
             />

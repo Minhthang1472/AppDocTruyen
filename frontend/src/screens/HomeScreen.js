@@ -3,13 +3,15 @@ import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, FlatList, 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
-import { fetchNovels } from '../utils/api';
+import { fetchNovels, getImageUrl } from '../utils/api';
+import { LanguageContext } from '../context/LanguageContext';
 
 export default function HomeScreen({ navigation }) {
   const [featured, setFeatured] = useState([]);
   const [trending, setTrending] = useState([]);
   const [editorPicks, setEditorPicks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { t } = React.useContext(LanguageContext);
 
   useEffect(() => {
     loadData();
@@ -48,27 +50,27 @@ export default function HomeScreen({ navigation }) {
     if (!mainFeatured) return null;
     return (
       <View style={styles.featuredContainer}>
-        <Image source={{ uri: mainFeatured.coverImage }} style={styles.featuredImage} />
+        <Image source={{ uri: getImageUrl(mainFeatured.coverImage) }} style={styles.featuredImage} />
         <View style={styles.featuredOverlay}>
           <View style={styles.tagsContainer}>
-            {mainFeatured.genres.map((genre, index) => (
+             {mainFeatured.genres.map((genre, index) => (
                <View key={index} style={styles.tag}>
-                 <Text style={styles.tagText}>{genre.toUpperCase()}</Text>
+                 <Text style={styles.tagText}>{t(genre).toUpperCase()}</Text>
                </View>
             ))}
             <View style={styles.tag}>
-               <Text style={styles.tagText}>FEATURED</Text>
+               <Text style={styles.tagText}>{t('featured')}</Text>
             </View>
           </View>
           <Text style={styles.featuredTitle}>{mainFeatured.title}</Text>
           <Text style={styles.featuredDesc} numberOfLines={2}>{mainFeatured.description}</Text>
           <View style={styles.featuredFooter}>
-            <TouchableOpacity 
+             <TouchableOpacity 
                style={styles.readButton}
                onPress={() => navigation.navigate('NovelDetail', { novelId: mainFeatured._id, novelTitle: mainFeatured.title })}
             >
               <Ionicons name="play" size={16} color="#000" />
-              <Text style={styles.readButtonText}>Start Reading</Text>
+              <Text style={styles.readButtonText}>{t('startReading')}</Text>
             </TouchableOpacity>
             <View style={styles.ratingContainer}>
               <Ionicons name="star" size={14} color={colors.primary} />
@@ -82,13 +84,13 @@ export default function HomeScreen({ navigation }) {
 
   const renderTrendingItem = ({ item, index }) => (
     <TouchableOpacity style={styles.trendingCard} onPress={() => navigation.navigate('NovelDetail', { novelId: item._id, novelTitle: item.title })}>
-      <Image source={{ uri: item.coverImage }} style={styles.trendingImage} />
+      <Image source={{ uri: getImageUrl(item.coverImage) }} style={styles.trendingImage} />
       <View style={styles.rankBadge}>
         <Text style={styles.rankText}>#{index + 1}</Text>
       </View>
       <Text style={styles.trendingTitle} numberOfLines={1}>{item.title}</Text>
       <Text style={styles.trendingSub}>
-        <Ionicons name="star" size={10} color={colors.primary} /> {item.rating} • {item.genres[0]} • {(item.views / 1000000).toFixed(1)}M Views
+        <Ionicons name="star" size={10} color={colors.primary} /> {item.rating} • {t(item.genres[0])} • {(item.views / 1000000).toFixed(1)}M {t('views')}
       </Text>
     </TouchableOpacity>
   );
@@ -97,21 +99,21 @@ export default function HomeScreen({ navigation }) {
     <View style={styles.sectionHeader}>
       <Text style={styles.sectionTitle}>{title}</Text>
       <TouchableOpacity onPress={() => navigation.navigate('Discovery', { category: categoryKey })}>
-        <Text style={styles.seeAllText}>See all <Feather name="chevron-right" size={12} /></Text>
+        <Text style={styles.seeAllText}>{t('seeAll')} <Feather name="chevron-right" size={12} /></Text>
       </TouchableOpacity>
     </View>
   );
 
   const renderEditorPickItem = (item) => (
     <TouchableOpacity key={item._id} style={styles.editorPickCard} onPress={() => navigation.navigate('NovelDetail', { novelId: item._id, novelTitle: item.title })}>
-      <Image source={{ uri: item.coverImage }} style={styles.editorImage} />
+      <Image source={{ uri: getImageUrl(item.coverImage) }} style={styles.editorImage} />
       <View style={styles.editorInfo}>
         <Text style={styles.editorTitle}>{item.title}</Text>
         <Text style={styles.editorDesc} numberOfLines={2}>{item.description}</Text>
         <View style={styles.tagsContainer}>
           {item.genres.map((genre, idx) => (
             <View key={idx} style={styles.tagSmall}>
-              <Text style={styles.tagTextSmall}>{genre.toUpperCase()}</Text>
+              <Text style={styles.tagTextSmall}>{t(genre).toUpperCase()}</Text>
             </View>
           ))}
         </View>
@@ -137,7 +139,7 @@ export default function HomeScreen({ navigation }) {
         {renderFeatured()}
         
         <View style={styles.section}>
-          {renderSectionHeader('Trending Now', 'trending')}
+          {renderSectionHeader(t('trendingNow'), 'trending')}
           <FlatList
             horizontal
             data={trending}
@@ -149,7 +151,7 @@ export default function HomeScreen({ navigation }) {
         </View>
 
         <View style={styles.section}>
-          {renderSectionHeader("Editor's Picks", 'editorPick')}
+          {renderSectionHeader(t('editorsPicks'), 'editorPick')}
           <View style={styles.editorList}>
              {editorPicks.map(item => renderEditorPickItem(item))}
           </View>

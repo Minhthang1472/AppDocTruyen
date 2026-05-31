@@ -1,13 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, Image, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
-import { fetchNovels } from '../utils/api';
+import { fetchNovels , getImageUrl } from '../utils/api';
+import { LanguageContext } from '../context/LanguageContext';
 
 const TABS = ['Daily', 'Weekly', 'Monthly', 'All-Time'];
 
 export default function RankingScreen({ navigation }) {
+  const { t } = useContext(LanguageContext);
   const [novels, setNovels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('Daily');
@@ -44,7 +46,9 @@ export default function RankingScreen({ navigation }) {
           style={[styles.tab, activeTab === tab && styles.activeTab]}
           onPress={() => setActiveTab(tab)}
         >
-          <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>{tab}</Text>
+          <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
+            {tab === 'Daily' ? t('daily') : (tab === 'Weekly' ? t('weekly') : (tab === 'Monthly' ? t('monthly') : t('allTime')))}
+          </Text>
         </TouchableOpacity>
       ))}
     </View>
@@ -63,7 +67,7 @@ export default function RankingScreen({ navigation }) {
         {top2 ? (
           <TouchableOpacity style={styles.topItem} onPress={() => navigation.navigate('NovelDetail', { novelId: top2._id, novelTitle: top2.title })}>
             <Text style={[styles.rankNumberText, { color: '#FFD700' }]}>2</Text>
-            <Image source={{ uri: top2.coverImage }} style={styles.topImageSmall} />
+            <Image source={{ uri: top2.coverImage ? getImageUrl(top2.coverImage) : 'https://via.placeholder.com/150' }} style={styles.topImageSmall} />
             <View style={styles.topOverlay}>
               <Text style={styles.topTitle} numberOfLines={1}>{top2.title}</Text>
               <Text style={styles.topViews}><Feather name="trending-up" size={10} /> {(top2.views/1000).toFixed(0)}K</Text>
@@ -74,8 +78,8 @@ export default function RankingScreen({ navigation }) {
         {/* Top 1 */}
         <TouchableOpacity style={[styles.topItem, { marginTop: -20, zIndex: 10 }]} onPress={() => navigation.navigate('NovelDetail', { novelId: top1._id, novelTitle: top1.title })}>
           <Text style={[styles.rankNumberText, { color: '#FFA500', fontSize: 40 }]}>1</Text>
-          <Image source={{ uri: top1.coverImage }} style={styles.topImageLarge} />
-          <View style={styles.hotBadge}><Feather name="trending-up" size={10} color="#000" /><Text style={{ fontSize: 10, fontWeight: 'bold' }}>HOT</Text></View>
+          <Image source={{ uri: top1.coverImage ? getImageUrl(top1.coverImage) : 'https://via.placeholder.com/150' }} style={styles.topImageLarge} />
+          <View style={styles.hotBadge}><Feather name="trending-up" size={10} color="#000" /><Text style={{ fontSize: 10, fontWeight: 'bold' }}>{t('hot')}</Text></View>
           <View style={styles.topOverlay}>
             <Text style={[styles.topTitle, { fontSize: 16 }]} numberOfLines={2}>{top1.title}</Text>
             <Text style={styles.topViews}><Feather name="trending-up" size={10} /> {(top1.views/1000).toFixed(0)}K</Text>
@@ -86,7 +90,7 @@ export default function RankingScreen({ navigation }) {
         {top3 ? (
           <TouchableOpacity style={styles.topItem} onPress={() => navigation.navigate('NovelDetail', { novelId: top3._id, novelTitle: top3.title })}>
             <Text style={[styles.rankNumberText, { color: '#CD7F32' }]}>3</Text>
-            <Image source={{ uri: top3.coverImage }} style={styles.topImageSmall} />
+            <Image source={{ uri: top3.coverImage ? getImageUrl(top3.coverImage) : 'https://via.placeholder.com/150' }} style={styles.topImageSmall} />
             <View style={styles.topOverlay}>
               <Text style={styles.topTitle} numberOfLines={1}>{top3.title}</Text>
               <Text style={styles.topViews}><Feather name="trending-up" size={10} /> {(top3.views/1000).toFixed(0)}K</Text>
@@ -102,13 +106,13 @@ export default function RankingScreen({ navigation }) {
     return (
       <TouchableOpacity style={styles.listCard} onPress={() => navigation.navigate('NovelDetail', { novelId: item._id, novelTitle: item.title })}>
         <Text style={styles.listRank}>{index + 1}</Text>
-        <Image source={{ uri: item.coverImage }} style={styles.listImage} />
+        <Image source={{ uri: item.coverImage ? getImageUrl(item.coverImage) : 'https://via.placeholder.com/150' }} style={styles.listImage} />
         <View style={styles.listInfo}>
           <Text style={styles.listTitle}>{item.title}</Text>
-          <Text style={styles.listSub}>{item.genres.join(' • ')}</Text>
+          <Text style={styles.listSub}>{item.genres.map(g => t(g) || g).join(' • ')}</Text>
           <View style={styles.listStats}>
             <View style={styles.tagSmall}>
-              <Text style={styles.tagTextSmall}>{item.genres[0]}</Text>
+              <Text style={styles.tagTextSmall}>{t(item.genres[0]) || item.genres[0]}</Text>
             </View>
             <Text style={styles.listViews}><Feather name="trending-up" size={12} color={colors.primary} /> {(item.views/1000).toFixed(0)}K</Text>
           </View>
@@ -123,7 +127,7 @@ export default function RankingScreen({ navigation }) {
       {renderHeader()}
       
       <View style={styles.content}>
-        <Text style={styles.pageTitle}>Ranking</Text>
+        <Text style={styles.pageTitle}>{t('ranking')}</Text>
         {renderTabs()}
 
         {loading ? (
@@ -138,7 +142,7 @@ export default function RankingScreen({ navigation }) {
             contentContainerStyle={{ paddingBottom: 40 }}
             ListFooterComponent={
               <TouchableOpacity style={{ alignItems: 'center', marginTop: 20 }}>
-                <Text style={{ color: colors.primary, fontSize: 16 }}>View Full Ranking <Feather name="chevron-down" /></Text>
+                <Text style={{ color: colors.primary, fontSize: 16 }}>{t('viewFullRanking')} <Feather name="chevron-down" /></Text>
               </TouchableOpacity>
             }
           />

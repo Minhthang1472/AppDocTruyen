@@ -71,8 +71,13 @@ router.get('/:id', optionalAuth, async (req, res) => {
       }
     }
 
+    const nextChapter = await Chapter.findOne({ novel: chapter.novel, chapterNumber: chapter.chapterNumber + 1 }).select('_id');
+    const prevChapter = await Chapter.findOne({ novel: chapter.novel, chapterNumber: chapter.chapterNumber - 1 }).select('_id');
+
     // Clone chapter object to return
     const responseData = chapter.toObject();
+    responseData.nextChapterId = nextChapter ? nextChapter._id : null;
+    responseData.prevChapterId = prevChapter ? prevChapter._id : null;
 
     if (!hasAccess) {
       responseData.content = 'THIS_IS_VIP_CONTENT'; // Flag for frontend to detect

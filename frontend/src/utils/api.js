@@ -14,6 +14,16 @@ const getApiUrl = () => {
 };
 
 const API_URL = getApiUrl();
+const BASE_URL = API_URL.replace('/api', '');
+
+export const getImageUrl = (url) => {
+    if (!url) return 'https://via.placeholder.com/150';
+    if (url.startsWith('/assets') || url.startsWith('/uploads')) {
+        const encodedUrl = url.split('/').map(segment => encodeURIComponent(segment)).join('/');
+        return `${BASE_URL}${encodedUrl}`;
+    }
+    return url;
+};
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 

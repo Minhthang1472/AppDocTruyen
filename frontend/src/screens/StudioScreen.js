@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, ActivityIndi
 import { Feather } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { LanguageContext } from '../context/LanguageContext';
-import { getMyNovels } from '../utils/api';
+import { getMyNovels , getImageUrl } from '../utils/api';
 
 export default function StudioScreen({ navigation }) {
   const { t } = useContext(LanguageContext);
@@ -52,7 +52,7 @@ export default function StudioScreen({ navigation }) {
 
   const renderNovel = ({ item }) => (
     <View style={styles.novelCard}>
-      <Image source={{ uri: item.coverImage }} style={styles.cover} />
+      <Image source={{ uri: item.coverImage ? getImageUrl(item.coverImage) : 'https://via.placeholder.com/150' }} style={styles.cover} />
       <View style={styles.info}>
         <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
         <Text style={styles.stats}>Chương: {item.chaptersCount} • Xem: {item.views} • Theo dõi: {item.followersCount || 0}</Text>

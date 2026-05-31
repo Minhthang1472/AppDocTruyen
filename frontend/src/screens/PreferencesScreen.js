@@ -1,13 +1,86 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function PreferencesScreen({ navigation }) {
   const [darkMode, setDarkMode] = useState(true);
   const [largeFont, setLargeFont] = useState(false);
   const [readingBackground, setReadingBackground] = useState('dark'); // 'dark', 'light', 'sepia'
+
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  const loadSettings = async () => {
+    try {
+      const saved = await AsyncStorage.getItem('readingSettings');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.bgColor === '#1A1816' || parsed.bgColor === '#121212') {
+          setReadingBackground('dark');
+          setDarkMode(true);
+        } else if (parsed.bgColor === '#FDF5E6') {
+          setReadingBackground('sepia');
+          setDarkMode(false);
+        } else if (parsed.bgColor === '#FFFFFF') {
+          setReadingBackground('light');
+          setDarkMode(false);
+        }
+        
+        if (parsed.fontSize >= 24) {
+          setLargeFont(true);
+        } else {
+          setLargeFont(false);
+        }
+      }
+    } catch (e) {
+      console.log(e);
+    }
+  };
+
+  const saveSettings = async (updates) => {
+    try {
+      const saved = await AsyncStorage.getItem('readingSettings');
+      let current = saved ? JSON.parse(saved) : {};
+      const merged = { ...current, ...updates };
+      await AsyncStorage.setItem('readingSettings', JSON.stringify(merged));
+    } catch (e) {
+      console.log(e);
+    }
+  };
+
+  const handleDarkModeChange = (val) => {
+    setDarkMode(val);
+    if (val) {
+      setReadingBackground('dark');
+      saveSettings({ bgColor: '#1A1816', textColor: '#FFFFFF' });
+    } else {
+      setReadingBackground('light');
+      saveSettings({ bgColor: '#FFFFFF', textColor: '#000000' });
+    }
+  };
+
+  const handleLargeFontChange = (val) => {
+    setLargeFont(val);
+    saveSettings({ fontSize: val ? 24 : 18 });
+  };
+
+  const handleThemeChange = (theme) => {
+    setReadingBackground(theme);
+    if (theme === 'dark') {
+      setDarkMode(true);
+      saveSettings({ bgColor: '#1A1816', textColor: '#FFFFFF' });
+    } else if (theme === 'light') {
+      setDarkMode(false);
+      saveSettings({ bgColor: '#FFFFFF', textColor: '#000000' });
+    } else if (theme === 'sepia') {
+      setDarkMode(false);
+      saveSettings({ bgColor: '#FDF5E6', textColor: '#3E2723' });
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -29,7 +102,7 @@ export default function PreferencesScreen({ navigation }) {
             </View>
             <Switch
               value={darkMode}
-              onValueChange={setDarkMode}
+              onValueChange={handleDarkModeChange}
               trackColor={{ false: '#767577', true: colors.primary }}
               thumbColor={darkMode ? '#FFF' : '#f4f3f4'}
             />
@@ -41,7 +114,7 @@ export default function PreferencesScreen({ navigation }) {
             </View>
             <Switch
               value={largeFont}
-              onValueChange={setLargeFont}
+              onValueChange={handleLargeFontChange}
               trackColor={{ false: '#767577', true: colors.primary }}
               thumbColor={largeFont ? '#FFF' : '#f4f3f4'}
             />
@@ -52,22 +125,22 @@ export default function PreferencesScreen({ navigation }) {
           <Text style={styles.sectionTitle}>Màu nền trang đọc (Reading Theme)</Text>
           <View style={styles.themeOptions}>
             <TouchableOpacity 
-              style={[styles.themeBox, { backgroundColor: '#121212' }, readingBackground === 'dark' && styles.themeSelected]}
-              onPress={() => setReadingBackground('dark')}
+              style={[styles.themeBox, { backgroundColor: '#1A1816' }, readingBackground === 'dark' && styles.themeSelected]}
+              onPress={() => handleThemeChange('dark')}
             >
               <Text style={{ color: '#FFF' }}>Tối</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
               style={[styles.themeBox, { backgroundColor: '#F0F0F0' }, readingBackground === 'light' && styles.themeSelected]}
-              onPress={() => setReadingBackground('light')}
+              onPress={() => handleThemeChange('light')}
             >
               <Text style={{ color: '#000' }}>Sáng</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
-              style={[styles.themeBox, { backgroundColor: '#F4ECD8' }, readingBackground === 'sepia' && styles.themeSelected]}
-              onPress={() => setReadingBackground('sepia')}
+              style={[styles.themeBox, { backgroundColor: '#FDF5E6' }, readingBackground === 'sepia' && styles.themeSelected]}
+              onPress={() => handleThemeChange('sepia')}
             >
               <Text style={{ color: '#5C4033' }}>Màu giấy cũ</Text>
             </TouchableOpacity>

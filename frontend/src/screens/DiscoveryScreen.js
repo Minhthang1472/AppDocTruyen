@@ -1,13 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity, FlatList, Image, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
-import { fetchPopularNovels, fetchNovels } from '../utils/api';
+import { fetchPopularNovels, fetchNovels , getImageUrl } from '../utils/api';
 import { DISCOVERY_GENRES, TRENDING_SEARCHES } from '../utils/constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { LanguageContext } from '../context/LanguageContext';
 
 export default function DiscoveryScreen({ navigation, route }) {
+  const { t } = useContext(LanguageContext);
   const initialCategory = route?.params?.category || null;
   const initialSearch = route?.params?.search || '';
 
@@ -112,7 +114,7 @@ export default function DiscoveryScreen({ navigation, route }) {
       <Feather name="search" size={20} color={colors.textSecondary} style={styles.searchIcon} />
       <TextInput
         style={styles.searchInput}
-        placeholder="Tìm kiếm truyện, tác giả..."
+        placeholder={t('searchPlaceholder')}
         placeholderTextColor={colors.textSecondary}
         value={searchText}
         onChangeText={setSearchText}
@@ -131,11 +133,11 @@ export default function DiscoveryScreen({ navigation, route }) {
     <View style={styles.section}>
       <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15}}>
         <Text style={[styles.sectionTitle, {marginBottom: 0}]}>
-          {searchHistory.length > 0 ? 'Lịch sử tìm kiếm' : 'Từ khóa thịnh hành'}
+          {searchHistory.length > 0 ? t('searchHistory') : t('trendingSearches')}
         </Text>
         {searchHistory.length > 0 && (
           <TouchableOpacity onPress={clearSearchHistory}>
-             <Text style={{color: colors.textSecondary, fontSize: 12}}>Xóa lịch sử</Text>
+             <Text style={{color: colors.textSecondary, fontSize: 12}}>{t('clearHistory')}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -143,7 +145,7 @@ export default function DiscoveryScreen({ navigation, route }) {
         {(searchHistory.length > 0 ? searchHistory : TRENDING_SEARCHES).map((item, index) => (
           <TouchableOpacity key={index} style={styles.tag} onPress={() => { setSearchText(item); setSearchQuery(item); saveSearchHistory(item); }}>
              <Feather name={searchHistory.length > 0 ? "clock" : "trending-up"} size={14} color={colors.textSecondary} />
-             <Text style={styles.tagText}>{item}</Text>
+             <Text style={styles.tagText}>{t(item) || item}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -152,12 +154,12 @@ export default function DiscoveryScreen({ navigation, route }) {
 
   const renderExploreGenres = () => (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Khám phá thể loại</Text>
+      <Text style={styles.sectionTitle}>{t('exploreGenres')}</Text>
       <View style={styles.genreGrid}>
         {DISCOVERY_GENRES.map(genre => (
           <TouchableOpacity key={genre.id} style={[styles.genreCard, { backgroundColor: genre.color }]} onPress={() => setCategory(genre.name)}>
             <Feather name={genre.icon} size={24} color={colors.text} style={{ marginBottom: 10 }} />
-            <Text style={styles.genreTitle} numberOfLines={2}>{genre.name}</Text>
+            <Text style={styles.genreTitle} numberOfLines={2}>{t(genre.name) || genre.name}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -168,19 +170,19 @@ export default function DiscoveryScreen({ navigation, route }) {
     <View style={styles.filterRow}>
       <TouchableOpacity style={styles.filterButton} onPress={cycleStatus}>
         <Text style={styles.filterText}>
-          Trạng thái: {status === 'All' ? 'Tất cả' : (status === 'Completed' ? 'Hoàn thành' : 'Đang ra')} <Feather name="refresh-cw" size={12} />
+          {t('status')}: {status === 'All' ? t('statusAll') : (status === 'Completed' ? t('statusCompleted') : t('statusOngoing'))} <Feather name="refresh-cw" size={12} />
         </Text>
       </TouchableOpacity>
       <TouchableOpacity style={styles.filterButton} onPress={cycleSort}>
         <Text style={styles.filterText}>
-          Xếp theo: {sort === 'views' ? 'Phổ biến' : (sort === 'newest' ? 'Mới nhất' : 'Đánh giá')} <Feather name="refresh-cw" size={12} />
+          {t('sortBy')}: {sort === 'views' ? t('sortPopular') : (sort === 'newest' ? t('sortNewest') : t('sortRating'))} <Feather name="refresh-cw" size={12} />
         </Text>
       </TouchableOpacity>
       <View style={{ flex: 1 }} />
       {(searchQuery || category || status !== 'All' || sort !== 'views') && (
         <TouchableOpacity onPress={clearFilters} style={{flexDirection: 'row', alignItems: 'center'}}>
           <Feather name="x-circle" size={14} color="#EF4444" style={{marginRight: 4}} />
-          <Text style={{color: '#EF4444', fontSize: 12}}>Bỏ lọc</Text>
+          <Text style={{color: '#EF4444', fontSize: 12}}>{t('clearFilters')}</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -188,13 +190,13 @@ export default function DiscoveryScreen({ navigation, route }) {
 
   const renderPopularItem = ({ item }) => (
     <TouchableOpacity style={styles.popularCard} onPress={() => navigation.navigate('NovelDetail', { novelId: item._id, novelTitle: item.title })}>
-      <Image source={{ uri: item.coverImage || 'https://via.placeholder.com/150' }} style={styles.popularImage} />
+      <Image source={{ uri: item.coverImage ? getImageUrl(item.coverImage) : 'https://via.placeholder.com/150' || 'https://via.placeholder.com/150' }} style={styles.popularImage} />
       <View style={styles.ratingBadge}>
         <Ionicons name="star" size={10} color="#000" />
         <Text style={styles.ratingTextBadge}>{item.rating}</Text>
       </View>
       <Text style={styles.popularTitle} numberOfLines={1}>{item.title}</Text>
-      <Text style={styles.popularSub}>{item.genres?.[0] || 'Novel'} • {item.chaptersCount} Ch.</Text>
+      <Text style={styles.popularSub}>{t(item.genres?.[0]) || item.genres?.[0] || 'Novel'} • {item.chaptersCount} Ch.</Text>
     </TouchableOpacity>
   );
 
@@ -210,8 +212,8 @@ export default function DiscoveryScreen({ navigation, route }) {
         <View style={[styles.section, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
           <Text style={styles.sectionTitle}>
              {(searchQuery || category || status !== 'All' || sort !== 'views') 
-                ? (category ? `Truyện ${category}` : 'Kết quả tìm kiếm') 
-                : 'Thịnh hành hiện nay'}
+                ? (category ? `${t('novelGenre')}${t(category) || category}` : t('searchResults')) 
+                : t('trendingNow')}
           </Text>
           <View style={{ flexDirection: 'row' }}>
              <Feather name="grid" size={20} color={colors.primary} style={{ marginRight: 15 }} />
@@ -232,8 +234,8 @@ export default function DiscoveryScreen({ navigation, route }) {
             ListEmptyComponent={() => (
               <View style={styles.emptyContainer}>
                 <Feather name="search" size={48} color={colors.border} />
-                <Text style={styles.emptyText}>Không tìm thấy truyện nào phù hợp!</Text>
-                <Text style={styles.emptySubText}>Vui lòng thử tìm với từ khóa hoặc bộ lọc khác.</Text>
+                <Text style={styles.emptyText}>{t('noNovelsFound')}</Text>
+                <Text style={styles.emptySubText}>{t('tryDifferentSearch')}</Text>
               </View>
             )}
           />

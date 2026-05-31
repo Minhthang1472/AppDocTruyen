@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert,
 import { Feather } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { LanguageContext } from '../context/LanguageContext';
-import { createNovel } from '../utils/api';
+import { createNovel , getImageUrl } from '../utils/api';
 import { FULL_GENRES as AVAILABLE_GENRES } from '../utils/constants';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';

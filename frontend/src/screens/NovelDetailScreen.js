@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { colors } from '../theme/colors';
-import { fetchChapters, api, fetchComments, postComment, fetchNovelDetails, rateNovel } from '../utils/api';
+import { fetchChapters, api, fetchComments, postComment, fetchNovelDetails, rateNovel, getImageUrl } from '../utils/api';
 import { LanguageContext } from '../context/LanguageContext';
 
 export default function NovelDetailScreen({ route, navigation }) {
@@ -152,11 +152,11 @@ export default function NovelDetailScreen({ route, navigation }) {
   const renderNovelInfo = () => (
     <View style={styles.novelInfoContainer}>
       <View style={styles.coverRow}>
-        <Image source={{ uri: novel?.coverImage || 'https://via.placeholder.com/150' }} style={styles.detailCover} />
+        <Image source={{ uri: novel?.coverImage ? getImageUrl(novel.coverImage) : 'https://via.placeholder.com/150' }} style={styles.detailCover} />
         <View style={styles.detailRight}>
           <Text style={styles.detailTitle}>{novel?.title}</Text>
-          <Text style={styles.detailAuthor}>Tác giả: <Text style={{color: '#FFF'}}>{novel?.author || 'Đang cập nhật'}</Text></Text>
-          <Text style={styles.detailStatus}>Trạng thái: <Text style={{color: colors.primary}}>{novel?.status || 'Ongoing'}</Text></Text>
+          <Text style={styles.detailAuthor}>{t('author')} <Text style={{color: '#FFF'}}>{novel?.author || t('updating')}</Text></Text>
+          <Text style={styles.detailStatus}>{t('status')}: <Text style={{color: colors.primary}}>{novel?.status || 'Ongoing'}</Text></Text>
           
           <View style={styles.statsGrid}>
             <View style={styles.statBadge}>
@@ -180,7 +180,7 @@ export default function NovelDetailScreen({ route, navigation }) {
             </View>
             <View style={styles.statBadge}>
                <Feather name="list" size={12} color="#D4B895" />
-               <Text style={styles.statText}>{chapters.length} Chương</Text>
+               <Text style={styles.statText}>{chapters.length} {t('chapters')}</Text>
             </View>
           </View>
         </View>
@@ -189,22 +189,22 @@ export default function NovelDetailScreen({ route, navigation }) {
       <View style={styles.genresRow}>
          {novel?.genres?.map((g, i) => (
            <View key={i} style={styles.genreBadgeInfo}>
-             <Text style={styles.genreTextInfo}>{g}</Text>
+             <Text style={styles.genreTextInfo}>{t(g) || g}</Text>
            </View>
          ))}
       </View>
 
       <View style={styles.descriptionContainer}>
-         <Text style={styles.sectionTitleInfo}>Giới thiệu</Text>
+         <Text style={styles.sectionTitleInfo}>{t('synopsis')}</Text>
          <Text style={styles.descriptionText}>{novel?.description || 'Chưa có thông tin giới thiệu cho truyện này.'}</Text>
       </View>
       
-      <Text style={[styles.sectionTitleInfo, { marginTop: 25, marginBottom: 15 }]}>Danh sách chương</Text>
+      <Text style={[styles.sectionTitleInfo, { marginTop: 25, marginBottom: 15 }]}>{t('chapterList')}</Text>
     </View>
   );
 
   const renderChapterItem = ({ item }) => {
-    let iconContent = <Text style={styles.chapterNumberText}>{item.chapterNumber}</Text>;
+    let iconContent = <Text style={styles.chapterNumberText}>{t('chapter')} {item.chapterNumber}</Text>;
     let itemStyle = styles.chapterItem;
     let titleStyle = styles.chapterTitle;
 
@@ -227,7 +227,7 @@ export default function NovelDetailScreen({ route, navigation }) {
         </View>
         <View style={styles.chapterInfo}>
           <Text style={titleStyle} numberOfLines={1}>{item.title}</Text>
-          <Text style={styles.chapterSub}>{item.time || '10m read'}</Text>
+          <Text style={styles.chapterSub}>{item.time || `10${t('readTime')}`}</Text>
         </View>
       </TouchableOpacity>
     );
@@ -235,12 +235,12 @@ export default function NovelDetailScreen({ route, navigation }) {
 
   const renderComments = () => (
     <View style={styles.commentsSection}>
-      <Text style={styles.commentsTitle}>Comments ({comments.length})</Text>
+      <Text style={styles.commentsTitle}>{t('comments')} ({comments.length})</Text>
       
       <View style={styles.commentInputRow}>
         <TextInput 
           style={styles.commentInput}
-          placeholder="Write a comment..."
+          placeholder={t('writeComment')}
           placeholderTextColor="#A09D9A"
           value={newComment}
           onChangeText={setNewComment}
@@ -326,7 +326,7 @@ export default function NovelDetailScreen({ route, navigation }) {
 
             <View style={styles.modalActionRow}>
               <TouchableOpacity style={styles.cancelBtn} onPress={() => setRatingModalVisible(false)}>
-                <Text style={styles.cancelBtnText}>Hủy</Text>
+                <Text style={styles.cancelBtnText}>{t('cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.submitRatingBtn} onPress={handleSubmitRating}>
                 <Text style={styles.submitRatingBtnText}>{t('submitRating')}</Text>

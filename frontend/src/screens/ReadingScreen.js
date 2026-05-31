@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, SafeAreaView, Dimensions, ActivityIndicator, Alert } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
@@ -47,8 +48,13 @@ export default function ReadingScreen({ route, navigation }) {
     await Brightness.setBrightnessAsync(val);
   };
 
+  useFocusEffect(
+    useCallback(() => {
+      loadSettings();
+    }, [])
+  );
+
   useEffect(() => {
-     loadSettings();
      loadChapterContent();
      
      return () => {
@@ -202,6 +208,26 @@ export default function ReadingScreen({ route, navigation }) {
             </View>
           </View>
         )}
+
+        <View style={styles.navRow}>
+          <TouchableOpacity 
+            style={[styles.navBtn, !chapter?.prevChapterId && styles.navBtnDisabled]} 
+            onPress={() => chapter?.prevChapterId && navigation.replace('Reading', { chapterId: chapter.prevChapterId, novelId })}
+            disabled={!chapter?.prevChapterId}
+          >
+            <Feather name="chevron-left" size={20} color={!chapter?.prevChapterId ? '#555' : '#000'} />
+            <Text style={[styles.navBtnText, !chapter?.prevChapterId && {color: '#555'}]}>Chương trước</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.navBtn, !chapter?.nextChapterId && styles.navBtnDisabled]} 
+            onPress={() => chapter?.nextChapterId && navigation.replace('Reading', { chapterId: chapter.nextChapterId, novelId })}
+            disabled={!chapter?.nextChapterId}
+          >
+            <Text style={[styles.navBtnText, !chapter?.nextChapterId && {color: '#555'}]}>Chương sau</Text>
+            <Feather name="chevron-right" size={20} color={!chapter?.nextChapterId ? '#555' : '#000'} />
+          </TouchableOpacity>
+        </View>
       </ScrollView>
 
       {/* Nút Cài đặt Nổi (FAB) */}
@@ -397,6 +423,31 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  navRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 40,
+    marginBottom: 20,
+  },
+  navBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 25,
+    minWidth: 140,
+    justifyContent: 'center',
+  },
+  navBtnDisabled: {
+    backgroundColor: 'rgba(128,128,128,0.2)',
+  },
+  navBtnText: {
+    color: '#000',
+    fontWeight: 'bold',
+    fontSize: 14,
+    marginHorizontal: 5,
   },
   modalOverlay: {
     flex: 1,

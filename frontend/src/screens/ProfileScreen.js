@@ -86,11 +86,11 @@ export default function ProfileScreen({ navigation }) {
           <Ionicons name="star" size={12} color="#000" />
         </View>
       </View>
-      <Text style={styles.userName}>{user?.username || 'Guest'}</Text>
+      <Text style={styles.userName}>{user?.username || t('guest')}</Text>
       {user?.bio ? (
         <Text style={styles.userBio}>{user.bio}</Text>
       ) : null}
-      <Text style={styles.userRole}>{user?.isPremium ? 'Thành viên VIP' : 'Thành viên thường'}</Text>
+      <Text style={styles.userRole}>{user?.isPremium ? t('premiumMember') : t('normalUser')}</Text>
 
       <View style={{ backgroundColor: 'rgba(197, 165, 255, 0.1)', paddingHorizontal: 15, paddingVertical: 5, borderRadius: 20, marginBottom: 15 }}>
         <Text style={{ color: colors.primary, fontWeight: 'bold' }}>{user?.coins || 0} Coins</Text>

@@ -2,10 +2,15 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const path = require('path');
 
 const app = express();
 
 app.use(cors());
+
+// Serve frontend assets
+app.use('/assets', express.static(path.join(__dirname, '../frontend/assets')));
+
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true })); // For parsing application/x-www-form-urlencoded from HTML forms
 

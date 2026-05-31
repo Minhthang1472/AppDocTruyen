@@ -64,7 +64,7 @@ export default function DownloadedSeriesScreen({ navigation }) {
            <Text style={{color: colors.textSecondary, textAlign: 'center', marginTop: 50}}>Bạn chưa tải bộ truyện nào.</Text>
         ) : downloads.map((item, index) => (
           <TouchableOpacity key={index} style={styles.itemCard} onPress={() => navigation.navigate('NovelDetail', { novelId: item.novelId, novelTitle: item.title })}>
-            <Image source={{ uri: item.coverImage || 'https://via.placeholder.com/60x80' }} style={styles.itemImg} />
+            <Image source={{ uri: item.coverImage ? getImageUrl(item.coverImage) : 'https://via.placeholder.com/150' || 'https://via.placeholder.com/60x80' }} style={styles.itemImg} />
             <View style={styles.itemInfo}>
               <Text style={styles.itemTitle} numberOfLines={1}>{item.title}</Text>
               <Text style={styles.itemSub}>Offline Available</Text>

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, Image, ActivityIndicator } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
-import { api } from '../utils/api';
+import { api , getImageUrl } from '../utils/api';
 import moment from 'moment';
 
 export default function ReadingHistoryScreen({ navigation }) {
@@ -42,7 +42,7 @@ export default function ReadingHistoryScreen({ navigation }) {
            <Text style={{color: colors.textSecondary, textAlign: 'center', marginTop: 50}}>Chưa có lịch sử đọc truyện.</Text>
         ) : history.map((item, index) => (
            <TouchableOpacity key={index} style={styles.historyCard} onPress={() => navigation.navigate('Reading', { chapterId: item.lastChapter?._id, title: item.lastChapter?.title, novelId: item.novel?._id })}>
-             <Image source={{ uri: item.novel?.coverImage || 'https://via.placeholder.com/60x80' }} style={styles.cardImage} />
+             <Image source={{ uri: item.novel?.coverImage ? getImageUrl(item.novel?.coverImage) : 'https://via.placeholder.com/150' || 'https://via.placeholder.com/60x80' }} style={styles.cardImage} />
              <View style={styles.cardInfo}>
                 <View style={styles.topRow}>
                    <View style={styles.genreBadge}>
